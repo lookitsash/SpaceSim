@@ -28,10 +28,14 @@ namespace SpaceSim
         Texture2D textureCockpit;
 
         Ship ship;
+        Earth earth;
         ChaseCamera camera;
         Skybox skybox;
 
-        Model shipModel;
+        Model modelShip, modelEarth;
+
+        private Vector4 globalAmbient;
+        private Sunlight sunlight;
 
         bool cameraSpringEnabled = true;
 
@@ -67,6 +71,15 @@ namespace SpaceSim
             
             ship = new Ship(GraphicsDevice);
 
+            earth = new Earth(GraphicsDevice);
+            earth.LoadContent(Content);
+
+            sunlight.direction = new Vector4(Vector3.Forward, 0.0f);
+            sunlight.color = new Vector4(1.0f, 0.941f, 0.898f, 1.0f);
+
+            // Setup scene's global ambient.
+            globalAmbient = new Vector4(0.2f, 0.2f, 0.2f, 1.0f);
+
             // Set the camera aspect ratio
             // This must be done after the class to base.Initalize() which will
             // initialize the graphics device.
@@ -91,8 +104,15 @@ namespace SpaceSim
 
             textureCockpit = Content.Load<Texture2D>("Textures/Cockpit6");
 
-            shipModel = Content.Load<Model>("Models/Ship");
+            modelShip = Content.Load<Model>("Models/Ship");
+            modelEarth = Content.Load<Model>("Models/earth");
 
+            /*
+            BoundingSphere bounds = new BoundingSphere();
+            foreach (ModelMesh mesh in modelEarth.Meshes)
+                bounds = BoundingSphere.CreateMerged(bounds, mesh.BoundingSphere);
+            float shipRadius = bounds.Radius;
+            */
             skybox = new Skybox("Textures/suninspace2", Content);
 
             // TODO: use this.Content to load your game content here
@@ -133,10 +153,9 @@ namespace SpaceSim
 
 
             // Pressing the A button or key toggles the spring behavior on and off
-            if (lastKeyboardState.IsKeyUp(Keys.A) &&
-                (currentKeyboardState.IsKeyDown(Keys.A)) || touchTopLeft)
+            if (lastKeyboardState.IsKeyUp(Keys.A) && (currentKeyboardState.IsKeyDown(Keys.A)) || touchTopLeft)
             {
-                cameraSpringEnabled = !cameraSpringEnabled;
+                //cameraSpringEnabled = !cameraSpringEnabled;
             }
 
             // Reset the ship on R key or right thumb stick clicked
@@ -148,6 +167,8 @@ namespace SpaceSim
 
             // Update the ship
             ship.Update(gameTime);
+
+            earth.Update(gameTime);
 
             // Update the camera to chase the new target
             UpdateCameraChaseTarget();
@@ -169,19 +190,23 @@ namespace SpaceSim
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
-
+            /*
             RasterizerState originalRasterizerState = graphics.GraphicsDevice.RasterizerState;
             RasterizerState rasterizerState = new RasterizerState();
             rasterizerState.CullMode = CullMode.None;
             graphics.GraphicsDevice.RasterizerState = rasterizerState;
             skybox.Draw(camera.View, camera.Projection, camera.Position);
             graphics.GraphicsDevice.RasterizerState = originalRasterizerState;
-
+            */
             GraphicsDevice.BlendState = BlendState.Opaque;
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
             GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
+            GraphicsDevice.SamplerStates[1] = SamplerState.LinearWrap;
+            GraphicsDevice.SamplerStates[2] = SamplerState.LinearWrap;
 
-            DrawModel(shipModel, ship.World);
+            //DrawModel(modelShip, ship.World);
+            //DrawModel(modelEarth, ship.World);
+            DrawEarth();
             //DrawCockpit(gameTime);
 
             // TODO: Add your drawing code here
@@ -252,5 +277,50 @@ namespace SpaceSim
 
             spriteBatch.End();
         }
+
+        private void DrawEarth()
+        {
+            //Matrix rotation = Matrix.CreateRotationY(earth.rotation) * Matrix.CreateRotationZ(MathHelper.ToRadians(-23.4f));
+
+            foreach (ModelMesh m in earth.model.Meshes)
+            {
+                foreach (Effect e in m.Effects)
+                {
+                    if (false) //hideClouds)
+                    {
+                        e.CurrentTechnique = e.Techniques["EarthWithoutClouds"];
+                    }
+                    else
+                    {
+                        e.CurrentTechnique = e.Techniques["EarthWithClouds"];
+                        e.Parameters["cloudStrength"].SetValue(earth.cloudStrength);
+                    }
+
+                    e.Parameters["world"].SetValue(Matrix.CreateScale(100) * ship.World);//earth.World);
+                    e.Parameters["view"].SetValue(camera.View);
+                    e.Parameters["projection"].SetValue(camera.Projection);
+                    e.Parameters["cameraPos"].SetValue(new Vector4(camera.Position, 1.0f));
+                    e.Parameters["globalAmbient"].SetValue(globalAmbient);
+                    e.Parameters["lightDir"].SetValue(sunlight.direction);
+                    e.Parameters["lightColor"].SetValue(sunlight.color);
+                    e.Parameters["materialAmbient"].SetValue(earth.ambient);
+                    e.Parameters["materialDiffuse"].SetValue(earth.diffuse);
+                    e.Parameters["materialSpecular"].SetValue(earth.specular);
+                    e.Parameters["materialShininess"].SetValue(earth.shininess);
+                    e.Parameters["landOceanColorGlossMap"].SetValue(earth.dayTexture);
+                    e.Parameters["cloudColorMap"].SetValue(earth.cloudTexture);
+                    e.Parameters["nightColorMap"].SetValue(earth.nightTexture);
+                    e.Parameters["normalMap"].SetValue(earth.normalMapTexture);
+                }
+
+                m.Draw();
+            }
+        }
+    }
+
+    public struct Sunlight
+    {
+        public Vector4 direction;
+        public Vector4 color;
     }
 }

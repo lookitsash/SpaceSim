@@ -101,7 +101,8 @@ namespace SpaceSim
         /// </summary>
         public void Reset()
         {
-            Position = new Vector3(0, MinimumAltitude, 0);
+            //Position = new Vector3(0, MinimumAltitude, 0);
+            Position = new Vector3(0, 0, 0);
             Direction = Vector3.Forward;
             Up = Vector3.Up;
             right = Vector3.Right;
@@ -215,7 +216,7 @@ namespace SpaceSim
 
 
             // Prevent ship from flying under the ground
-            Position.Y = Math.Max(Position.Y, MinimumAltitude);
+            //Position.Y = Math.Max(Position.Y, MinimumAltitude);
 
 
             // Reconstruct the ship's world matrix
