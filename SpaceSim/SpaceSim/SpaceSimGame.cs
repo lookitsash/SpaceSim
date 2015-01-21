@@ -19,6 +19,7 @@ namespace SpaceSim
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
         SpriteFont spriteFont;
+        public static ConsoleWindow ConsoleWindow;
 
         KeyboardState lastKeyboardState = new KeyboardState();
         MouseState lastMouseState = new MouseState();
@@ -34,6 +35,8 @@ namespace SpaceSim
 
         Model modelShip, modelEarth;
 
+        public List<Entity> EntityCollection = new List<Entity>();
+
         private Vector4 globalAmbient;
         private Sunlight sunlight;
 
@@ -43,6 +46,27 @@ namespace SpaceSim
         {
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
+
+            (ConsoleWindow = new ConsoleWindow()).Show();
+            ConsoleWindow.OnInput += new ConsoleWindow.ConsoleInputEventHandler(OnConsoleInput);
+        }
+
+        private void OnConsoleInput(string str)
+        {
+            if (str == "exit" || str == "quit") Exit();
+        }
+
+        public Entity GetCollidingEntity(Entity source)
+        {
+            foreach (Entity target in EntityCollection)
+            {
+                if (target != source)
+                {
+                    //BoundingSphere c1BoundingSphere = c1.model.Meshes[i].BoundingSphere;
+                    //c1BoundingSphere.Center += c1.position;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -62,17 +86,20 @@ namespace SpaceSim
             camera = new ChaseCamera();
 
             // Set the camera offsets
-            camera.DesiredPositionOffset = new Vector3(0.0f, 2000.0f, 3500.0f);
-            camera.LookAtOffset = new Vector3(0.0f, 150.0f, 0.0f);
+            camera.DesiredPositionOffset = new Vector3(0.0f, 100.0f, 350.0f);
+            camera.LookAtOffset = new Vector3(0.0f, 50.0f, 0.0f);
 
             // Set camera perspective
             camera.NearPlaneDistance = 10.0f;
             camera.FarPlaneDistance = 100000.0f;
-            
-            ship = new Ship(GraphicsDevice);
 
-            earth = new Earth(GraphicsDevice);
+            EntityCollection.Add(ship = new Ship(GraphicsDevice, modelShip));
+            ship.Position = new Vector3(0, 0, 44000);
+
+            EntityCollection.Add(earth = new Earth(GraphicsDevice, modelEarth));
             earth.LoadContent(Content);
+            earth.Scale = 5000;
+            earth.Position = new Vector3(0, 0, -20000);
 
             sunlight.direction = new Vector4(Vector3.Forward, 0.0f);
             sunlight.color = new Vector4(1.0f, 0.941f, 0.898f, 1.0f);
@@ -189,7 +216,7 @@ namespace SpaceSim
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(Color.Black);
             /*
             RasterizerState originalRasterizerState = graphics.GraphicsDevice.RasterizerState;
             RasterizerState rasterizerState = new RasterizerState();
@@ -204,7 +231,7 @@ namespace SpaceSim
             GraphicsDevice.SamplerStates[1] = SamplerState.LinearWrap;
             GraphicsDevice.SamplerStates[2] = SamplerState.LinearWrap;
 
-            //DrawModel(modelShip, ship.World);
+            DrawModel(modelShip, ship.World);
             //DrawModel(modelEarth, ship.World);
             DrawEarth();
             //DrawCockpit(gameTime);
@@ -296,7 +323,7 @@ namespace SpaceSim
                         e.Parameters["cloudStrength"].SetValue(earth.cloudStrength);
                     }
 
-                    e.Parameters["world"].SetValue(Matrix.CreateScale(100) * ship.World);//earth.World);
+                    e.Parameters["world"].SetValue(earth.World);
                     e.Parameters["view"].SetValue(camera.View);
                     e.Parameters["projection"].SetValue(camera.Projection);
                     e.Parameters["cameraPos"].SetValue(new Vector4(camera.Position, 1.0f));

@@ -17,21 +17,15 @@ using System;
 
 namespace SpaceSim
 {
-    class Ship
+    public class Ship : Entity
     {
+        public Ship(GraphicsDevice device, Model model) : base(device, model) { }
+
         #region Fields
 
         private const float MinimumAltitude = 350.0f;
 
-        /// <summary>
-        /// A reference to the graphics device used to access the viewport for touch input.
-        /// </summary>
-        private GraphicsDevice graphicsDevice;
-
-        /// <summary>
-        /// Location of ship in world space.
-        /// </summary>
-        public Vector3 Position;
+        public float Scale = 0.1f;
 
         /// <summary>
         /// Direction ship is facing.
@@ -77,29 +71,14 @@ namespace SpaceSim
         /// </summary>
         public Vector3 Velocity;
 
-        /// <summary>
-        /// Ship world transform matrix.
-        /// </summary>
-        public Matrix World
-        {
-            get { return world; }
-        }
-        private Matrix world;
-
         #endregion
 
         #region Initialization
 
-        public Ship(GraphicsDevice device)
-        {
-            graphicsDevice = device;
-            Reset();
-        }
-
         /// <summary>
         /// Restore the ship to its original starting state
         /// </summary>
-        public void Reset()
+        public override void Reset()
         {
             //Position = new Vector3(0, MinimumAltitude, 0);
             Position = new Vector3(0, 0, 0);
@@ -139,28 +118,35 @@ namespace SpaceSim
                 mouseState.Y >= 2 * graphicsDevice.Viewport.Height / 3;
         }
 
+        KeyboardState currentKeyboardState = new KeyboardState();
+        MouseState currentMouseState = new MouseState();
+        KeyboardState lastKeyboardState = new KeyboardState();
+        MouseState lastMouseState = new MouseState();
+
         /// <summary>
         /// Applies a simple rotation to the ship and animates position based
         /// on simple linear motion physics.
         /// </summary>
         public void Update(GameTime gameTime)
         {
-            KeyboardState keyboardState = Keyboard.GetState();
-            GamePadState gamePadState = GamePad.GetState(PlayerIndex.One);
-            MouseState mouseState = Mouse.GetState();
+            lastKeyboardState = currentKeyboardState;
+            lastMouseState = currentMouseState;
+
+            currentKeyboardState = Keyboard.GetState();
+            currentMouseState = Mouse.GetState();
 
             float elapsed = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
 
             // Determine rotation amount from input
-            Vector2 rotationAmount = -gamePadState.ThumbSticks.Left;
-            if (keyboardState.IsKeyDown(Keys.Left) || TouchLeft())
+            Vector2 rotationAmount = Vector2.Zero;
+            if (currentKeyboardState.IsKeyDown(Keys.Left) || TouchLeft())
                 rotationAmount.X = 1.0f;
-            if (keyboardState.IsKeyDown(Keys.Right) || TouchRight())
+            if (currentKeyboardState.IsKeyDown(Keys.Right) || TouchRight())
                 rotationAmount.X = -1.0f;
-            if (keyboardState.IsKeyDown(Keys.Up) || TouchUp())
+            if (currentKeyboardState.IsKeyDown(Keys.Up) || TouchUp())
                 rotationAmount.Y = -1.0f;
-            if (keyboardState.IsKeyDown(Keys.Down) || TouchDown())
+            if (currentKeyboardState.IsKeyDown(Keys.Down) || TouchDown())
                 rotationAmount.Y = 1.0f;
 
             // Scale rotation amount to radians per second
@@ -170,6 +156,10 @@ namespace SpaceSim
             if (Up.Y < 0)
                 rotationAmount.X = -rotationAmount.X;
 
+            if (lastKeyboardState.IsKeyUp(Keys.RightControl) && (currentKeyboardState.IsKeyDown(Keys.RightControl)))
+            {
+                rotationAmount.X = MathHelper.Pi;
+            }
 
             // Create rotation matrix from rotation amount
             Matrix rotationMatrix =
@@ -196,8 +186,8 @@ namespace SpaceSim
 
 
             // Determine thrust amount from input
-            float thrustAmount = gamePadState.Triggers.Right;
-            if (keyboardState.IsKeyDown(Keys.Space) || mouseState.LeftButton == ButtonState.Pressed)
+            float thrustAmount = 0;
+            if (currentKeyboardState.IsKeyDown(Keys.Space) || currentMouseState.LeftButton == ButtonState.Pressed)
                 thrustAmount = 1.0f;
 
             // Calculate force from thrust amount
@@ -225,6 +215,10 @@ namespace SpaceSim
             world.Up = Up;
             world.Right = right;
             world.Translation = Position;
+
+            world = Matrix.CreateScale(Scale) * world;
+
+            //SpaceSimGame.ConsoleWindow.Log(String.Format("Ship - {0},{1},{2}", (int)Position.X, (int)Position.Y, (int)Position.Z));
         }
     }
 }

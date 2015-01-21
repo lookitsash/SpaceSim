@@ -8,26 +8,10 @@ using System;
 
 namespace SpaceSim
 {
-    public class Earth
+    public class Earth : Entity
     {
-        /// <summary>
-        /// Location of earth in world space.
-        /// </summary>
-        public Vector3 Position;
 
-        /// <summary>
-        /// A reference to the graphics device used to access the viewport for touch input.
-        /// </summary>
-        private GraphicsDevice graphicsDevice;
-
-        /// <summary>
-        /// Earth world transform matrix.
-        /// </summary>
-        public Matrix World
-        {
-            get { return world; }
-        }
-        private Matrix world;
+        public float Scale = 1;
 
         public Model model;
         public Effect effect;
@@ -46,13 +30,9 @@ namespace SpaceSim
 
         public float rotation;
 
-        public Earth(GraphicsDevice device)
-        {
-            graphicsDevice = device;
-            Reset();
-        }
+        public Earth(GraphicsDevice device, Model model) : base(device, model) { }
 
-        public void Reset()
+        public override void Reset()
         {
             Position = new Vector3(0, 0, 0);
         }
@@ -91,14 +71,14 @@ namespace SpaceSim
         /// </summary>
         public void Update(GameTime gameTime)
         {
-            rotation += (float)gameTime.ElapsedGameTime.TotalMilliseconds * MathHelper.ToRadians(0.01f);
+            rotation += (float)gameTime.ElapsedGameTime.TotalMilliseconds * MathHelper.ToRadians(0.001f);
 
             //Matrix rotation = Matrix.CreateRotationY(earth.rotation) * Matrix.CreateRotationZ(MathHelper.ToRadians(-23.4f));
 
             // Reconstruct the ship's world matrix
             //world = Matrix.CreateRotationY(rotation) * Matrix.CreateRotationZ(MathHelper.ToRadians(-23.4f));
             //world.Translation = Position;
-            world = Matrix.CreateTranslation(new Vector3(0, 0, -2000));
+            world = Matrix.CreateScale(Scale) * Matrix.CreateRotationY(rotation) * Matrix.CreateRotationZ(MathHelper.ToRadians(-23.4f)) * Matrix.CreateTranslation(Position);
         }
     }
 }
