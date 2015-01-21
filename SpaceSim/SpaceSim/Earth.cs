@@ -8,7 +8,7 @@ using System;
 
 namespace SpaceSim
 {
-    public class Earth : Entity
+    public class Earth : SpaceEntity
     {
 
         public float Scale = 1;

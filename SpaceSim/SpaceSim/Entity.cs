@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SpaceSim
 {
-    public class Entity
+    public class SpaceEntity
     {
         /// <summary>
         /// Location of entity in world space.
@@ -30,7 +30,7 @@ namespace SpaceSim
         /// </summary>
         protected GraphicsDevice graphicsDevice;
 
-        public Entity(GraphicsDevice device, Model model)
+        public SpaceEntity(GraphicsDevice device, Model model)
         {
             graphicsDevice = device;
             Model = model;

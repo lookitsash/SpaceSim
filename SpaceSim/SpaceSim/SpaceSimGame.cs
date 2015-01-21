@@ -8,6 +8,11 @@ using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
+using BEPUphysics;
+using BEPUphysics.Entities.Prefabs;
+using BEPUphysics.Entities;
+using ConversionHelper;
+using BEPUphysics.Paths.PathFollowing;
 
 namespace SpaceSim
 {
@@ -16,6 +21,8 @@ namespace SpaceSim
     /// </summary>
     public class SpaceSimGame : Microsoft.Xna.Framework.Game
     {
+        Space space;
+
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
         SpriteFont spriteFont;
@@ -28,14 +35,14 @@ namespace SpaceSim
 
         Texture2D textureCockpit;
 
-        Ship ship;
+        //Ship ship;
         Earth earth;
-        ChaseCamera camera;
+        public static ChaseCamera camera;
         Skybox skybox;
 
         Model modelShip, modelEarth;
 
-        public List<Entity> EntityCollection = new List<Entity>();
+        public List<SpaceEntity> EntityCollection = new List<SpaceEntity>();
 
         private Vector4 globalAmbient;
         private Sunlight sunlight;
@@ -56,9 +63,9 @@ namespace SpaceSim
             if (str == "exit" || str == "quit") Exit();
         }
 
-        public Entity GetCollidingEntity(Entity source)
+        public SpaceEntity GetCollidingEntity(SpaceEntity source)
         {
-            foreach (Entity target in EntityCollection)
+            foreach (SpaceEntity target in EntityCollection)
             {
                 if (target != source)
                 {
@@ -93,8 +100,8 @@ namespace SpaceSim
             camera.NearPlaneDistance = 10.0f;
             camera.FarPlaneDistance = 100000.0f;
 
-            EntityCollection.Add(ship = new Ship(GraphicsDevice, modelShip));
-            ship.Position = new Vector3(0, 0, 44000);
+            //EntityCollection.Add(ship = new Ship(GraphicsDevice, modelShip));
+            //ship.Position = new Vector3(0, 0, 44000);
 
             EntityCollection.Add(earth = new Earth(GraphicsDevice, modelEarth));
             earth.LoadContent(Content);
@@ -120,6 +127,8 @@ namespace SpaceSim
             camera.Reset();
         }
 
+        Entity entityShip;
+
         /// <summary>
         /// LoadContent will be called once per game and is the place to load
         /// all of your content.
@@ -143,6 +152,35 @@ namespace SpaceSim
             skybox = new Skybox("Textures/suninspace2", Content);
 
             // TODO: use this.Content to load your game content here
+            space = new Space();
+            //Box ground = new Box(BEPUutilities.Vector3.Zero, 30, 1, 30);
+            //space.Add(ground);
+
+            space.Add(new Box(new BEPUutilities.Vector3(0, 1000, 40000), 1, 1, 1, 1));
+            //space.Add(new Box(new BEPUutilities.Vector3(0, 8, 0), 1, 1, 1, 1));
+            //space.Add(new Box(new BEPUutilities.Vector3(0, 12, 0), 1, 1, 1, 1));
+            space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
+
+            //Go through the list of entities in the space and create a graphical representation for them.
+            foreach (Entity e in space.Entities)
+            {
+                Box box = e as Box;
+                if (box != null) //This won't create any graphics for an entity that isn't a box since the model being used is a box.
+                {
+                    if (entityShip == null)
+                    {
+                        entityShip = box;
+                        entityShip.AngularDamping = 0.9f;
+                    }
+
+                    Matrix scaling = Matrix.CreateScale(0.1f, 0.1f, 0.1f); //Since the cube model is 1x1x1, it needs to be scaled to match the size of each individual box.
+                    EntityModel model = new EntityModel(e, modelShip, MathConverter.Convert(scaling), this);
+                    //Add the drawable game component for this entity to the game.
+                    Components.Add(model);
+                    e.Tag = model; //set the object tag of this entity to the model so that it's easy to delete the graphics component later if the entity is removed.
+                }
+            }
+            
         }
 
         /// <summary>
@@ -185,7 +223,29 @@ namespace SpaceSim
                 //cameraSpringEnabled = !cameraSpringEnabled;
             }
 
+            if (currentKeyboardState.IsKeyDown(Keys.Left))
+            {
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0.25f), 1.0f);
+            }
+            else if (currentKeyboardState.IsKeyDown(Keys.Right))
+            {
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, -0.25f), 1.0f);
+            }
+            
+            if (currentKeyboardState.IsKeyDown(Keys.Up))
+            {
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0.25f), 1.0f);
+            }
+            else if (currentKeyboardState.IsKeyDown(Keys.Down))
+            {
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, -0.25f), 1.0f);
+            }
+
+            //ConsoleWindow.Log(entityShip.WorldTransform.Up.ToString());
+            //entityShip.WorldTransform.U
+
             // Reset the ship on R key or right thumb stick clicked
+            /*
             if (currentKeyboardState.IsKeyDown(Keys.R))
             {
                 ship.Reset();
@@ -194,11 +254,11 @@ namespace SpaceSim
 
             // Update the ship
             ship.Update(gameTime);
-
+            */
             earth.Update(gameTime);
 
             // Update the camera to chase the new target
-            UpdateCameraChaseTarget();
+            //UpdateCameraChaseTarget();
 
             // The chase camera's update behavior is the springs, but we can
             // use the Reset method to have a locked, spring-less camera
@@ -206,6 +266,8 @@ namespace SpaceSim
                 camera.Update(gameTime);
             else
                 camera.Reset();
+
+            space.Update();
 
             base.Update(gameTime);
         }
@@ -231,9 +293,9 @@ namespace SpaceSim
             GraphicsDevice.SamplerStates[1] = SamplerState.LinearWrap;
             GraphicsDevice.SamplerStates[2] = SamplerState.LinearWrap;
 
-            DrawModel(modelShip, ship.World);
+            //DrawModel(modelShip, ship.World);
             //DrawModel(modelEarth, ship.World);
-            DrawEarth();
+            //DrawEarth();
             //DrawCockpit(gameTime);
 
             // TODO: Add your drawing code here
@@ -278,9 +340,13 @@ namespace SpaceSim
         /// </summary>
         private void UpdateCameraChaseTarget()
         {
-            camera.ChasePosition = ship.Position;
-            camera.ChaseDirection = ship.Direction;
-            camera.Up = ship.Up;
+            //camera.ChasePosition = ship.Position;
+            //camera.ChaseDirection = ship.Direction;
+            //camera.Up = ship.Up;
+            //entityShip.
+            camera.ChasePosition = MathConverter.Convert(entityShip.Position);
+            camera.ChaseDirection = MathConverter.Convert(entityShip.WorldTransform.Forward);
+            camera.Up = MathConverter.Convert(entityShip.WorldTransform.Up);
         }
 
         /// <summary>

@@ -17,7 +17,7 @@ using System;
 
 namespace SpaceSim
 {
-    public class Ship : Entity
+    public class Ship : SpaceEntity
     {
         public Ship(GraphicsDevice device, Model model) : base(device, model) { }
 
