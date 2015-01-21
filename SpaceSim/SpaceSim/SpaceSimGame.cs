@@ -157,6 +157,7 @@ namespace SpaceSim
             //space.Add(ground);
 
             space.Add(new Box(new BEPUutilities.Vector3(0, 1000, 40000), 1, 1, 1, 1));
+            space.Add(new Sphere(new BEPUutilities.Vector3(0, 0, -20000), 2000));
             //space.Add(new Box(new BEPUutilities.Vector3(0, 8, 0), 1, 1, 1, 1));
             //space.Add(new Box(new BEPUutilities.Vector3(0, 12, 0), 1, 1, 1, 1));
             space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
@@ -165,16 +166,26 @@ namespace SpaceSim
             foreach (Entity e in space.Entities)
             {
                 Box box = e as Box;
+                Sphere sphere = e as Sphere;
                 if (box != null) //This won't create any graphics for an entity that isn't a box since the model being used is a box.
                 {
                     if (entityShip == null)
                     {
                         entityShip = box;
                         entityShip.AngularDamping = 0.9f;
+                        entityShip.LinearDamping = 0.9f;
                     }
 
                     Matrix scaling = Matrix.CreateScale(0.1f, 0.1f, 0.1f); //Since the cube model is 1x1x1, it needs to be scaled to match the size of each individual box.
                     EntityModel model = new EntityModel(e, modelShip, MathConverter.Convert(scaling), this);
+                    //Add the drawable game component for this entity to the game.
+                    Components.Add(model);
+                    e.Tag = model; //set the object tag of this entity to the model so that it's easy to delete the graphics component later if the entity is removed.
+                }
+                else if (sphere != null)
+                {
+                    Matrix scaling = Matrix.CreateScale(5000f, 5000f, 5000f); //Since the cube model is 1x1x1, it needs to be scaled to match the size of each individual box.
+                    PlanetModel model = new PlanetModel(e, modelEarth, MathConverter.Convert(scaling), this);
                     //Add the drawable game component for this entity to the game.
                     Components.Add(model);
                     e.Tag = model; //set the object tag of this entity to the model so that it's easy to delete the graphics component later if the entity is removed.
@@ -241,6 +252,11 @@ namespace SpaceSim
                 entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, -0.25f), 1.0f);
             }
 
+            if (currentKeyboardState.IsKeyDown(Keys.Space))
+            {
+                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * 500;
+            }
+
             //ConsoleWindow.Log(entityShip.WorldTransform.Up.ToString());
             //entityShip.WorldTransform.U
 
@@ -258,7 +274,7 @@ namespace SpaceSim
             earth.Update(gameTime);
 
             // Update the camera to chase the new target
-            //UpdateCameraChaseTarget();
+            UpdateCameraChaseTarget();
 
             // The chase camera's update behavior is the springs, but we can
             // use the Reset method to have a locked, spring-less camera
