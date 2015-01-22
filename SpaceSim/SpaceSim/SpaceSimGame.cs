@@ -69,6 +69,19 @@ namespace SpaceSim
             (ConsoleWindow = new ConsoleWindow()).Show();
             ConsoleWindow.OnInput += new ConsoleWindow.ConsoleInputEventHandler(OnConsoleInput);
 
+            ConsoleWindow.LogTimestamp = false;
+            ConsoleWindow.Log("Welcome to my SpaceSim game in development.\r\nUse the keys below to navigate:\r\n");
+            ConsoleWindow.Log("W - Pitch down");
+            ConsoleWindow.Log("S - Pitch up");
+            ConsoleWindow.Log("A - Turn left");
+            ConsoleWindow.Log("D - Turn right");
+            ConsoleWindow.Log("Q - Roll left");
+            ConsoleWindow.Log("E - Roll right");
+            ConsoleWindow.Log("Space - Move forwards");
+            ConsoleWindow.Log("LeftCtrl - Move backwards");
+            ConsoleWindow.Log("\r\nIf you fly into asteroids, they will move using realistic physics.\r\nIf you bump them too much, they will explode into smaller asteroids");
+            ConsoleWindow.LogTimestamp = true;
+
             // Construct our particle system components.
             explosionParticles = new ExplosionParticleSystem(this, Content);
             explosionSmokeParticles = new ExplosionSmokeParticleSystem(this, Content);
@@ -135,7 +148,7 @@ namespace SpaceSim
             camera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
 
             // Set camera perspective
-            camera.NearPlaneDistance = 1.0f;
+            camera.NearPlaneDistance = 0.1f;
             camera.FarPlaneDistance = 1000.0f;
 
             //EntityCollection.Add(ship = new Ship(GraphicsDevice, modelShip));
@@ -188,7 +201,7 @@ namespace SpaceSim
                 bounds = BoundingSphere.CreateMerged(bounds, mesh.BoundingSphere);
             float shipRadius = bounds.Radius;
             */
-            skybox = new Skybox("Textures/Cubemap1", Content);
+            skybox = new Skybox("Textures/Background1", Content);
 
             // TODO: use this.Content to load your game content here
             space = new Space();
@@ -454,7 +467,7 @@ namespace SpaceSim
             }
             else if (currentKeyboardState.IsKeyDown(Keys.LeftControl))
             {
-                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * -10;
+                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * -5;
             }
 
             

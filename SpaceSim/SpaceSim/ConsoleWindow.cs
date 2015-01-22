@@ -67,6 +67,8 @@ namespace SpaceSim
             return Timer_Elapsed;
         }
 
+        public bool LogTimestamp = true;
+
         public void Log(string str)
         {
             try
@@ -76,7 +78,7 @@ namespace SpaceSim
                     currentEntries = 0;
                     outputTextBox.Clear();
                 }
-                outputTextBox.AppendText(DateTime.Now.ToLongTimeString() + " - " + str + "\r\n");
+                outputTextBox.AppendText((LogTimestamp ? DateTime.Now.ToLongTimeString() + " - " : "") + str + "\r\n");
                 currentEntries++;
             }
             catch { }

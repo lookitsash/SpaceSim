@@ -89,13 +89,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Textures\suninspace2.dds">
-      <Name>suninspace2</Name>
-      <Importer>TextureImporter</Importer>
-      <Processor>TextureProcessor</Processor>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="Effects\earth.fx">
       <Name>earth</Name>
       <Importer>EffectImporter</Importer>
@@ -187,8 +180,8 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Textures\Cubemap1.dds">
-      <Name>Cubemap1</Name>
+    <Compile Include="Textures\Background1.dds">
+      <Name>Background1</Name>
       <Importer>TextureImporter</Importer>
       <Processor>TextureProcessor</Processor>
       <ProcessorParameters_PremultiplyAlpha>False</ProcessorParameters_PremultiplyAlpha>
