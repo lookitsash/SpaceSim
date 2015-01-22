@@ -5,6 +5,13 @@ using BEPUphysics.Entities;
 
 namespace SpaceSim
 {
+    public enum GameModelType
+    {
+        Planet,
+        Ship,
+        Asteroid
+    }
+
     /// <summary>
     /// Component that draws a model following the position and orientation of a BEPUphysics entity.
     /// </summary>
@@ -22,6 +29,7 @@ namespace SpaceSim
         }
         */
 
+        public GameModelType GameModelType;
         public Model model;
         public Effect effect;
         public BoundingSphere bounds;

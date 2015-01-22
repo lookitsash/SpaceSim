@@ -13,6 +13,10 @@ using BEPUphysics.Entities.Prefabs;
 using BEPUphysics.Entities;
 using ConversionHelper;
 using BEPUphysics.Paths.PathFollowing;
+using BEPUphysics.BroadPhaseEntries.MobileCollidables;
+using BEPUphysics.BroadPhaseEntries;
+using BEPUphysics.NarrowPhaseSystems.Pairs;
+using ParticleEngine;
 
 namespace SpaceSim
 {
@@ -40,7 +44,7 @@ namespace SpaceSim
         public static ChaseCamera camera;
         Skybox skybox;
 
-        Model modelShip, modelEarth;
+        Model modelShip, modelEarth, modelAsteroid;
 
         public List<SpaceEntity> EntityCollection = new List<SpaceEntity>();
 
@@ -56,6 +60,28 @@ namespace SpaceSim
 
             (ConsoleWindow = new ConsoleWindow()).Show();
             ConsoleWindow.OnInput += new ConsoleWindow.ConsoleInputEventHandler(OnConsoleInput);
+
+            // Construct our particle system components.
+            explosionParticles = new ExplosionParticleSystem(this, Content);
+            explosionSmokeParticles = new ExplosionSmokeParticleSystem(this, Content);
+            projectileTrailParticles = new ProjectileTrailParticleSystem(this, Content);
+            smokePlumeParticles = new SmokePlumeParticleSystem(this, Content);
+            fireParticles = new FireParticleSystem(this, Content);
+
+            // Set the draw order so the explosions and fire
+            // will appear over the top of the smoke.
+            smokePlumeParticles.DrawOrder = 100;
+            explosionSmokeParticles.DrawOrder = 200;
+            projectileTrailParticles.DrawOrder = 300;
+            explosionParticles.DrawOrder = 400;
+            fireParticles.DrawOrder = 500;
+
+            // Register the particle system components.
+            Components.Add(explosionParticles);
+            Components.Add(explosionSmokeParticles);
+            Components.Add(projectileTrailParticles);
+            Components.Add(smokePlumeParticles);
+            Components.Add(fireParticles);
         }
 
         private void OnConsoleInput(string str)
@@ -94,6 +120,7 @@ namespace SpaceSim
 
             // Set the camera offsets
             camera.DesiredPositionOffset = new Vector3(0.0f, 100.0f, 350.0f);
+            //camera.DesiredPositionOffset = new Vector3(100.0f, 100.0f, 350.0f);
             camera.LookAtOffset = new Vector3(0.0f, 50.0f, 0.0f);
 
             // Set camera perspective
@@ -127,7 +154,7 @@ namespace SpaceSim
             camera.Reset();
         }
 
-        Entity entityShip;
+        Entity entityShip, entityEarth, entityAsteroid;
 
         /// <summary>
         /// LoadContent will be called once per game and is the place to load
@@ -142,6 +169,7 @@ namespace SpaceSim
 
             modelShip = Content.Load<Model>("Models/Ship");
             modelEarth = Content.Load<Model>("Models/earth");
+            modelAsteroid = Content.Load<Model>("Models/asteroid");
 
             /*
             BoundingSphere bounds = new BoundingSphere();
@@ -156,12 +184,23 @@ namespace SpaceSim
             //Box ground = new Box(BEPUutilities.Vector3.Zero, 30, 1, 30);
             //space.Add(ground);
 
-            space.Add(new Box(new BEPUutilities.Vector3(0, 1000, 40000), 1, 1, 1, 1));
-            space.Add(new Sphere(new BEPUutilities.Vector3(0, 0, -20000), 2000));
-            //space.Add(new Box(new BEPUutilities.Vector3(0, 8, 0), 1, 1, 1, 1));
-            //space.Add(new Box(new BEPUutilities.Vector3(0, 12, 0), 1, 1, 1, 1));
+            entityShip = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 25000), 100, 100), modelShip, 0.1f, GameModelType.Ship, 0, 0, typeof(EntityModel));
+            entityShip.AngularDamping = 0.9f;
+            entityShip.LinearDamping = 0.9f;
+            entityShip.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
+
+            entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -20000), 20500), modelEarth, 5000f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
+            entityEarth.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
+
+            AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 200, 1000), modelAsteroid, 1000f, GameModelType.Asteroid, 1, 3, typeof(EntityModel));
+            AddEntity(space, new Sphere(new BEPUutilities.Vector3(-1000, 0, 21000), 200, 1000), modelAsteroid, 1000f, GameModelType.Asteroid, 1, 3, typeof(EntityModel));
+            AddEntity(space, new Sphere(new BEPUutilities.Vector3(1000, 0, 21000), 200, 1000), modelAsteroid, 1000f, GameModelType.Asteroid, 1, 3, typeof(EntityModel));
+
             space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
 
+            //BEPUphysics.Ex
+
+            /*
             //Go through the list of entities in the space and create a graphical representation for them.
             foreach (Entity e in space.Entities)
             {
@@ -191,7 +230,135 @@ namespace SpaceSim
                     e.Tag = model; //set the object tag of this entity to the model so that it's easy to delete the graphics component later if the entity is removed.
                 }
             }
-            
+            */
+        }
+
+        ParticleSystem explosionParticles;
+        ParticleSystem explosionSmokeParticles;
+        ParticleSystem projectileTrailParticles;
+        ParticleSystem smokePlumeParticles;
+        ParticleSystem fireParticles;
+
+        void HandleCollision(EntityCollidable sender, Collidable other, CollidablePairHandler pair)
+        {
+            //This type of event can occur when an entity hits any other object which can be collided with.
+            //They aren't always entities; for example, hitting a StaticMesh would trigger this.
+            //Entities use EntityCollidables as collision proxies; see if the thing we hit is one.
+            var otherEntityInformation = other as EntityCollidable;
+            if (otherEntityInformation != null)
+            {
+                if (sender.Entity == entityEarth)
+                {
+                    if (otherEntityInformation.Entity.Tag is EntityModel && ((EntityModel)otherEntityInformation.Entity.Tag).GameModelType == GameModelType.Asteroid)
+                    {
+                        //We hit an entity! remove it.
+                        space.Remove(otherEntityInformation.Entity);
+                        //Remove the graphics too.
+                        Components.Remove((EntityModel)otherEntityInformation.Entity.Tag);
+
+                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 100), 50, 0);
+                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 100), 50, 0.1f);
+                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 100), 50, 0.2f);
+
+                        //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 100, 1000), modelAsteroid, 500f, typeof(EntityModel));
+                        //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 100, 1000), modelAsteroid, 500f, typeof(EntityModel));
+                    }
+                }
+                else if (sender.Entity == entityShip)
+                {
+                    if (otherEntityInformation.Entity.Tag is EntityModel && ((EntityModel)otherEntityInformation.Entity.Tag).GameModelType == GameModelType.Asteroid)
+                    {
+                        EntityModel parent = ((EntityModel)(otherEntityInformation.Entity.Tag));
+                        parent.Strength--;
+
+                        if (parent.Strength <= 0)
+                        {
+                            space.Remove(otherEntityInformation.Entity);
+                            Components.Remove((EntityModel)otherEntityInformation.Entity.Tag);
+
+                            QueueExplosion(MathConverter.Convert(otherEntityInformation.Entity.Position), 50, 0);
+
+                            if (parent.MaxDestructionDivision > 0)
+                            {
+                                Vector3 pos = MathConverter.Convert(otherEntityInformation.Entity.Position+(otherEntityInformation.Entity.WorldTransform.Up*50));
+                                Entity newEntity = AddEntity(space, new Sphere(MathConverter.Convert(pos), ((Sphere)otherEntityInformation.Entity).Radius / 2.0f, 1000), modelAsteroid, parent.Scale / 2.0f, GameModelType.Asteroid, 1, parent.MaxDestructionDivision-1, typeof(EntityModel));
+                                newEntity.LinearVelocity = otherEntityInformation.Entity.WorldTransform.Up * 50;
+
+                                pos = MathConverter.Convert(otherEntityInformation.Entity.Position + (otherEntityInformation.Entity.WorldTransform.Down * 50));
+                                newEntity = AddEntity(space, new Sphere(MathConverter.Convert(pos), ((Sphere)otherEntityInformation.Entity).Radius / 2.0f, 1000), modelAsteroid, parent.Scale / 2.0f, GameModelType.Asteroid, 1, parent.MaxDestructionDivision - 1, typeof(EntityModel));
+                                newEntity.LinearVelocity = otherEntityInformation.Entity.WorldTransform.Down * 50;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private List<QueuedExplosion> QueuedExplosions = new List<QueuedExplosion>();
+        public void QueueExplosion(Vector3 position, int strength, float delaySeconds)
+        {
+            QueuedExplosions.Add(new QueuedExplosion() { Position = position, Strength = strength, DetonationTime = DateTime.Now.AddSeconds(delaySeconds) });
+        }
+        private void ProcessQueuedExplosions()
+        {
+            for (int i = QueuedExplosions.Count - 1; i >= 0; i--)
+            {
+                QueuedExplosion explosion = QueuedExplosions[i];
+                if (DateTime.Now >= explosion.DetonationTime)
+                {
+                    ShowExplosion(explosion.Position, explosion.Strength);
+                    QueuedExplosions.RemoveAt(i);
+                }
+            }
+        }
+        public void ShowExplosion(Vector3 position, int strength)
+        {
+            int numExplosionParticles = 100;
+            int numExplosionSmokeParticles = 50;
+            Random r = new Random();
+            for (int i = 0; i < numExplosionParticles; i++)
+                explosionParticles.AddParticle(position, new Vector3(r.Next(-strength, strength), r.Next(-strength, strength), r.Next(-strength, strength)));
+
+            for (int i = 0; i < numExplosionSmokeParticles; i++)
+                explosionSmokeParticles.AddParticle(position, new Vector3(r.Next(-strength / 2, strength/2), r.Next(-strength / 2, strength / 2), r.Next(-strength / 2, strength / 2)));
+        }
+        public Vector3 GetRandomPosition(Vector3 center, int maxRange)
+        {
+            Random r = new Random();
+            return new Vector3((float)r.Next((int)center.X - maxRange, (int)center.X + maxRange), (float)r.Next((int)center.Y - maxRange, (int)center.Y + maxRange), (float)r.Next((int)center.Z - maxRange, (int)center.Z + maxRange));
+        }
+
+        private Entity AddEntity(Space space, Entity entity, Model model, float scale, GameModelType gameModelType, int strength, int destructionDivisions, Type entityType)
+        {
+            space.Add(entity);
+            DrawableGameComponent entityModel = null;
+            if (entityType == typeof(EntityModel))
+            {
+                entityModel = new EntityModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this);
+                ((EntityModel)entityModel).GameModelType = gameModelType;
+                ((EntityModel)entityModel).Scale = scale;
+                ((EntityModel)entityModel).Strength = strength;
+                ((EntityModel)entityModel).MaxDestructionDivision = destructionDivisions;
+                entity.Tag = entityModel;
+
+                if (gameModelType == GameModelType.Asteroid)
+                {
+                    entity.AngularDamping = 0;
+                    entity.LinearDamping = 0;
+                    float xRotRnd = (new Random().NextDouble() * new Random().Next(0, 1) == 1 ? 1 : -1);
+                    float yRotRnd = (new Random().NextDouble() * new Random().Next(0, 1) == 1 ? 1 : -1);
+                    float zRotRnd = (new Random().NextDouble() * new Random().Next(0, 1) == 1 ? 1 : -1);
+                    entity.AngularVelocity = new BEPUutilities.Vector3(xRotRnd, yRotRnd, zRotRnd);
+                }
+            }
+            else if (entityType == typeof(PlanetModel))
+            {
+                entityModel = new PlanetModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this);
+                entity.Tag = entityModel;
+            }
+            Components.Add(entityModel);
+
+            return entity;
         }
 
         /// <summary>
@@ -234,27 +401,31 @@ namespace SpaceSim
                 //cameraSpringEnabled = !cameraSpringEnabled;
             }
 
-            if (currentKeyboardState.IsKeyDown(Keys.Left))
+            if (currentKeyboardState.IsKeyDown(Keys.A))
             {
                 entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0.25f), 1.0f);
             }
-            else if (currentKeyboardState.IsKeyDown(Keys.Right))
+            else if (currentKeyboardState.IsKeyDown(Keys.D))
             {
                 entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, -0.25f), 1.0f);
             }
             
-            if (currentKeyboardState.IsKeyDown(Keys.Up))
+            if (currentKeyboardState.IsKeyDown(Keys.W))
             {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0.25f), 1.0f);
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0.15f), 1.0f);
             }
-            else if (currentKeyboardState.IsKeyDown(Keys.Down))
+            else if (currentKeyboardState.IsKeyDown(Keys.S))
             {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, -0.25f), 1.0f);
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, -0.15f), 1.0f);
             }
 
             if (currentKeyboardState.IsKeyDown(Keys.Space))
             {
                 entityShip.LinearVelocity = entityShip.WorldTransform.Forward * 500;
+            }
+            else if (currentKeyboardState.IsKeyDown(Keys.LeftControl))
+            {
+                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * -500;
             }
 
             //ConsoleWindow.Log(entityShip.WorldTransform.Up.ToString());
@@ -285,6 +456,8 @@ namespace SpaceSim
 
             space.Update();
 
+            ProcessQueuedExplosions();
+
             base.Update(gameTime);
         }
 
@@ -313,6 +486,13 @@ namespace SpaceSim
             //DrawModel(modelEarth, ship.World);
             //DrawEarth();
             //DrawCockpit(gameTime);
+
+            // Pass camera matrices through to the particle system components.
+            explosionParticles.SetCamera(camera.View, camera.Projection);
+            explosionSmokeParticles.SetCamera(camera.View, camera.Projection);
+            projectileTrailParticles.SetCamera(camera.View, camera.Projection);
+            smokePlumeParticles.SetCamera(camera.View, camera.Projection);
+            fireParticles.SetCamera(camera.View, camera.Projection);
 
             // TODO: Add your drawing code here
 
@@ -431,5 +611,12 @@ namespace SpaceSim
     {
         public Vector4 direction;
         public Vector4 color;
+    }
+
+    public class QueuedExplosion
+    {
+        public DateTime DetonationTime;
+        public Vector3 Position;
+        public int Strength;
     }
 }

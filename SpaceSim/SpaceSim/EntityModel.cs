@@ -22,6 +22,11 @@ namespace SpaceSim
         }
         */
 
+        public GameModelType GameModelType;
+        public int Strength = 3;
+        public int MaxDestructionDivision = 2;
+        public float Scale = 0;
+
         /// <summary>
         /// Entity that this model follows.
         /// </summary>

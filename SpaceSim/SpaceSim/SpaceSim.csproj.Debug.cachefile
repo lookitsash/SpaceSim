@@ -12,3 +12,8 @@ Content\Textures\earth_night_color.xnb
 Content\Textures\earth_nrm.xnb
 Content\Textures\star-small.xnb
 Content\Models\earth.xnb
+Content\Models\asteroid.xnb
+Content\Textures\explosion.xnb
+Content\Textures\fire.xnb
+Content\Textures\smoke.xnb
+Content\Effects\ParticleEffect.xnb
