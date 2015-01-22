@@ -32,7 +32,7 @@ namespace SpaceSim
         /// The size of the cube, used so that we can resize the box
         /// for different sized environments.
         /// </summary>
-        private float size = 10000f;
+        private float size = 60000f;
 
         /// <summary>
         /// Creates a new skybox

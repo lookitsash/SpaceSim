@@ -41,8 +41,11 @@ namespace SpaceSim
 
         //Ship ship;
         Earth earth;
-        public static ChaseCamera camera;
+        public static ChaseCamera camera = null;
         Skybox skybox;
+
+        //StarfieldComponent starfieldComponent;
+        //Starfield starfield;
 
         Model modelShip, modelEarth, modelAsteroid;
 
@@ -57,6 +60,11 @@ namespace SpaceSim
         {
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
+
+            IsFixedTimeStep = false;
+
+            //starfieldComponent = new StarfieldComponent(this);
+            //Components.Add(starfieldComponent);
 
             (ConsoleWindow = new ConsoleWindow()).Show();
             ConsoleWindow.OnInput += new ConsoleWindow.ConsoleInputEventHandler(OnConsoleInput);
@@ -82,6 +90,9 @@ namespace SpaceSim
             Components.Add(projectileTrailParticles);
             Components.Add(smokePlumeParticles);
             Components.Add(fireParticles);
+
+            //starfield = new Starfield(this, 1000);
+            //Components.Add(starfield);
         }
 
         private void OnConsoleInput(string str)
@@ -154,7 +165,7 @@ namespace SpaceSim
             camera.Reset();
         }
 
-        Entity entityShip, entityEarth, entityAsteroid;
+        public static Entity entityShip, entityEarth, entityAsteroid;
 
         /// <summary>
         /// LoadContent will be called once per game and is the place to load
@@ -177,7 +188,7 @@ namespace SpaceSim
                 bounds = BoundingSphere.CreateMerged(bounds, mesh.BoundingSphere);
             float shipRadius = bounds.Radius;
             */
-            skybox = new Skybox("Textures/suninspace2", Content);
+            skybox = new Skybox("Textures/Cubemap1", Content);
 
             // TODO: use this.Content to load your game content here
             space = new Space();
@@ -198,7 +209,7 @@ namespace SpaceSim
 
             space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
 
-            //BEPUphysics.Ex
+            //starfieldComponent.Generate(10000, 40000);
 
             /*
             //Go through the list of entities in the space and create a graphical representation for them.
@@ -361,6 +372,10 @@ namespace SpaceSim
             return entity;
         }
 
+        private void FireWeapon()
+        {
+        }
+
         /// <summary>
         /// UnloadContent will be called once per game and is the place to unload
         /// all content.
@@ -401,22 +416,36 @@ namespace SpaceSim
                 //cameraSpringEnabled = !cameraSpringEnabled;
             }
 
+            if (lastKeyboardState.IsKeyUp(Keys.RightControl) && (currentKeyboardState.IsKeyDown(Keys.RightControl)))
+            {
+                FireWeapon();
+            }
+
             if (currentKeyboardState.IsKeyDown(Keys.A))
             {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0.25f), 1.0f);
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0.05f), 1.0f);
             }
             else if (currentKeyboardState.IsKeyDown(Keys.D))
             {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, -0.25f), 1.0f);
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, -0.05f), 1.0f);
             }
             
             if (currentKeyboardState.IsKeyDown(Keys.W))
             {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0.15f), 1.0f);
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0.05f), 1.0f);
             }
             else if (currentKeyboardState.IsKeyDown(Keys.S))
             {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, -0.15f), 1.0f);
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, -0.05f), 1.0f);
+            }
+
+            if (currentKeyboardState.IsKeyDown(Keys.E))
+            {
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0.15f), 1.0f);
+            }
+            else if (currentKeyboardState.IsKeyDown(Keys.Q))
+            {
+                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, -0.15f), 1.0f);
             }
 
             if (currentKeyboardState.IsKeyDown(Keys.Space))
@@ -427,6 +456,8 @@ namespace SpaceSim
             {
                 entityShip.LinearVelocity = entityShip.WorldTransform.Forward * -500;
             }
+
+            
 
             //ConsoleWindow.Log(entityShip.WorldTransform.Up.ToString());
             //entityShip.WorldTransform.U
@@ -458,6 +489,9 @@ namespace SpaceSim
 
             ProcessQueuedExplosions();
 
+
+            //UpdateStarfield();
+
             base.Update(gameTime);
         }
 
@@ -468,14 +502,14 @@ namespace SpaceSim
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.Black);
-            /*
+            
             RasterizerState originalRasterizerState = graphics.GraphicsDevice.RasterizerState;
             RasterizerState rasterizerState = new RasterizerState();
             rasterizerState.CullMode = CullMode.None;
             graphics.GraphicsDevice.RasterizerState = rasterizerState;
             skybox.Draw(camera.View, camera.Projection, camera.Position);
             graphics.GraphicsDevice.RasterizerState = originalRasterizerState;
-            */
+            
             GraphicsDevice.BlendState = BlendState.Opaque;
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
             GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
