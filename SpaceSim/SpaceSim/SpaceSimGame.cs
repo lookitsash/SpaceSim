@@ -130,21 +130,21 @@ namespace SpaceSim
             camera = new ChaseCamera();
 
             // Set the camera offsets
-            camera.DesiredPositionOffset = new Vector3(0.0f, 100.0f, 350.0f);
+            camera.DesiredPositionOffset = new Vector3(0.0f, 1.0f, 3.5f);
             //camera.DesiredPositionOffset = new Vector3(100.0f, 100.0f, 350.0f);
-            camera.LookAtOffset = new Vector3(0.0f, 50.0f, 0.0f);
+            camera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
 
             // Set camera perspective
-            camera.NearPlaneDistance = 10.0f;
-            camera.FarPlaneDistance = 100000.0f;
+            camera.NearPlaneDistance = 1.0f;
+            camera.FarPlaneDistance = 1000.0f;
 
             //EntityCollection.Add(ship = new Ship(GraphicsDevice, modelShip));
             //ship.Position = new Vector3(0, 0, 44000);
 
             EntityCollection.Add(earth = new Earth(GraphicsDevice, modelEarth));
             earth.LoadContent(Content);
-            earth.Scale = 5000;
-            earth.Position = new Vector3(0, 0, -20000);
+            earth.Scale = 50;
+            earth.Position = new Vector3(0, 0, -200);
 
             sunlight.direction = new Vector4(Vector3.Forward, 0.0f);
             sunlight.color = new Vector4(1.0f, 0.941f, 0.898f, 1.0f);
@@ -195,17 +195,17 @@ namespace SpaceSim
             //Box ground = new Box(BEPUutilities.Vector3.Zero, 30, 1, 30);
             //space.Add(ground);
 
-            entityShip = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 25000), 100, 100), modelShip, 0.1f, GameModelType.Ship, 0, 0, typeof(EntityModel));
+            entityShip = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 250), 1, 100), modelShip, .001f, GameModelType.Ship, 0, 0, typeof(EntityModel));
             entityShip.AngularDamping = 0.9f;
             entityShip.LinearDamping = 0.9f;
             entityShip.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
 
-            entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -20000), 20500), modelEarth, 5000f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
+            entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -200), 205), modelEarth, 50f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
             entityEarth.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
 
-            AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 200, 1000), modelAsteroid, 1000f, GameModelType.Asteroid, 1, 3, typeof(EntityModel));
-            AddEntity(space, new Sphere(new BEPUutilities.Vector3(-1000, 0, 21000), 200, 1000), modelAsteroid, 1000f, GameModelType.Asteroid, 1, 3, typeof(EntityModel));
-            AddEntity(space, new Sphere(new BEPUutilities.Vector3(1000, 0, 21000), 200, 1000), modelAsteroid, 1000f, GameModelType.Asteroid, 1, 3, typeof(EntityModel));
+            AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
+            AddEntity(space, new Sphere(new BEPUutilities.Vector3(-10, 0, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
+            AddEntity(space, new Sphere(new BEPUutilities.Vector3(10, 0, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
 
             space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
 
@@ -267,9 +267,9 @@ namespace SpaceSim
                         //Remove the graphics too.
                         Components.Remove((EntityModel)otherEntityInformation.Entity.Tag);
 
-                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 100), 50, 0);
-                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 100), 50, 0.1f);
-                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 100), 50, 0.2f);
+                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0);
+                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0.1f);
+                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0.2f);
 
                         //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 100, 1000), modelAsteroid, 500f, typeof(EntityModel));
                         //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 100, 1000), modelAsteroid, 500f, typeof(EntityModel));
@@ -287,17 +287,17 @@ namespace SpaceSim
                             space.Remove(otherEntityInformation.Entity);
                             Components.Remove((EntityModel)otherEntityInformation.Entity.Tag);
 
-                            QueueExplosion(MathConverter.Convert(otherEntityInformation.Entity.Position), 50, 0);
+                            QueueExplosion(MathConverter.Convert(otherEntityInformation.Entity.Position), 5, 0);
 
                             if (parent.MaxDestructionDivision > 0)
                             {
-                                Vector3 pos = MathConverter.Convert(otherEntityInformation.Entity.Position+(otherEntityInformation.Entity.WorldTransform.Up*50));
+                                Vector3 pos = MathConverter.Convert(otherEntityInformation.Entity.Position+(otherEntityInformation.Entity.WorldTransform.Up*5));
                                 Entity newEntity = AddEntity(space, new Sphere(MathConverter.Convert(pos), ((Sphere)otherEntityInformation.Entity).Radius / 2.0f, 1000), modelAsteroid, parent.Scale / 2.0f, GameModelType.Asteroid, 1, parent.MaxDestructionDivision-1, typeof(EntityModel));
-                                newEntity.LinearVelocity = otherEntityInformation.Entity.WorldTransform.Up * 50;
+                                newEntity.LinearVelocity = otherEntityInformation.Entity.WorldTransform.Up * 0.5f;
 
-                                pos = MathConverter.Convert(otherEntityInformation.Entity.Position + (otherEntityInformation.Entity.WorldTransform.Down * 50));
+                                pos = MathConverter.Convert(otherEntityInformation.Entity.Position + (otherEntityInformation.Entity.WorldTransform.Down * 5));
                                 newEntity = AddEntity(space, new Sphere(MathConverter.Convert(pos), ((Sphere)otherEntityInformation.Entity).Radius / 2.0f, 1000), modelAsteroid, parent.Scale / 2.0f, GameModelType.Asteroid, 1, parent.MaxDestructionDivision - 1, typeof(EntityModel));
-                                newEntity.LinearVelocity = otherEntityInformation.Entity.WorldTransform.Down * 50;
+                                newEntity.LinearVelocity = otherEntityInformation.Entity.WorldTransform.Down * 0.5f;
                             }
                         }
                     }
@@ -450,11 +450,11 @@ namespace SpaceSim
 
             if (currentKeyboardState.IsKeyDown(Keys.Space))
             {
-                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * 500;
+                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * 10;
             }
             else if (currentKeyboardState.IsKeyDown(Keys.LeftControl))
             {
-                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * -500;
+                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * -10;
             }
 
             
