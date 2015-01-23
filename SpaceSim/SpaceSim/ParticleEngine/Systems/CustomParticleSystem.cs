@@ -1,6 +1,6 @@
 ﻿#region File Description
 //-----------------------------------------------------------------------------
-// FireParticleSystem.cs
+// ExplosionParticleSystem.cs
 //
 // Microsoft XNA Community Game Platform
 // Copyright (C) Microsoft Corporation. All rights reserved.
@@ -17,7 +17,7 @@ using Microsoft.Xna.Framework.Graphics;
 namespace ParticleEngine
 {
     /// <summary>
-    /// Custom particle system for creating a flame effect.
+    /// Custom particle system for creating the fiery part of the explosions.
     /// </summary>
     class CustomParticleSystem : ParticleSystem
     {
@@ -28,34 +28,37 @@ namespace ParticleEngine
 
         protected override void InitializeSettings(ParticleSettings settings)
         {
-            settings.TextureName = "Textures/smoke";
+            settings.TextureName = "Textures/explosion";
 
-            settings.MaxParticles = 240;
+            settings.MaxParticles = 1000;
 
-            settings.Duration = TimeSpan.FromSeconds(0.5);
+            //settings.Scale = 0.1f;
 
+            settings.Duration = TimeSpan.FromSeconds(2);
             settings.DurationRandomness = 1;
 
-            settings.MinHorizontalVelocity = 0;
-            settings.MaxHorizontalVelocity = 5;
+            settings.MinHorizontalVelocity = 20;
+            settings.MaxHorizontalVelocity = 30;
 
-            settings.MinVerticalVelocity = -5;
-            settings.MaxVerticalVelocity = 5;
+            settings.MinVerticalVelocity = -20;
+            settings.MaxVerticalVelocity = 20;
 
-            // Set gravity upside down, so the flames will 'fall' upward.
-            settings.Gravity = Vector3.Zero; // new Vector3(0, 15, 0);
+            settings.EndVelocity = 0;
 
-            settings.MinColor = Color.Black; //new Color(255, 255, 255, 255);
-            settings.MaxColor = Color.Black; //new Color(255, 255, 255, 255);
+            settings.MinColor = Color.DarkGray;
+            settings.MaxColor = Color.Gray;
+
+            settings.MinRotateSpeed = -1;
+            settings.MaxRotateSpeed = 1;
 
             settings.MinStartSize = 1;
-            settings.MaxStartSize = 3;
+            settings.MaxStartSize = 1;
 
-            settings.MinEndSize = 1;
-            settings.MaxEndSize = 3;
+            settings.MinEndSize = 10;
+            settings.MaxEndSize = 14;
 
             // Use additive blending.
-            //settings.BlendState = BlendState.Additive;
+            settings.BlendState = BlendState.Additive;
         }
     }
 }

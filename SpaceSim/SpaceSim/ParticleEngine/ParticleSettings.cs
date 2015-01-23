@@ -21,6 +21,8 @@ namespace ParticleEngine
     /// </summary>
     public class ParticleSettings
     {
+        public float Scale = 1.0f;
+
         // Name of the texture used by this particle system.
         public string TextureName = null;
 

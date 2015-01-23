@@ -72,7 +72,7 @@ namespace SpaceSim
             //and translation of the entity combined.
             //There are a variety of properties available in the entity, try looking around
             //in the list to familiarize yourself with it.
-            
+
             Matrix worldMatrix = MathConverter.Convert(Transform * entity.WorldTransform);
 
 

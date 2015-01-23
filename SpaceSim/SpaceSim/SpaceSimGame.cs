@@ -49,7 +49,7 @@ namespace SpaceSim
         //StarfieldComponent starfieldComponent;
         //Starfield starfield;
 
-        Model modelShip, modelEarth, modelAsteroid;
+        Model modelShip, modelEarth, modelAsteroid, modelLaser;
 
         public List<SpaceEntity> EntityCollection = new List<SpaceEntity>();
 
@@ -359,6 +359,7 @@ namespace SpaceSim
             modelShip = Content.Load<Model>("Models/Ship");
             modelEarth = Content.Load<Model>("Models/earth");
             modelAsteroid = Content.Load<Model>("Models/asteroid");
+            modelLaser = Content.Load<Model>("Models/Laser");
 
             /*
             BoundingSphere bounds = new BoundingSphere();
@@ -508,14 +509,17 @@ namespace SpaceSim
         }
         public void ShowExplosion(Vector3 position, int strength)
         {
-            int numExplosionParticles = 100;
+            int numExplosionParticles = 10;
             int numExplosionSmokeParticles = 50;
             Random r = new Random();
             for (int i = 0; i < numExplosionParticles; i++)
-                explosionParticles.AddParticle(position, new Vector3(r.Next(-strength, strength), r.Next(-strength, strength), r.Next(-strength, strength)));
+                //explosionParticles.AddParticle(position, new Vector3(0.01f,0.01f,0.01f));
+                //explosionParticles.AddParticle(position, new Vector3(r.Next(-strength, strength), r.Next(-strength, strength), r.Next(-strength, strength)));
 
-            for (int i = 0; i < numExplosionSmokeParticles; i++)
-                explosionSmokeParticles.AddParticle(position, new Vector3(r.Next(-strength / 2, strength/2), r.Next(-strength / 2, strength / 2), r.Next(-strength / 2, strength / 2)));
+                customParticleSystem.AddParticle(position, new Vector3(r.Next(-strength, strength), r.Next(-strength, strength), r.Next(-strength, strength)));
+
+            //for (int i = 0; i < numExplosionSmokeParticles; i++)
+                //explosionSmokeParticles.AddParticle(position, new Vector3(r.Next(-strength / 2, strength/2), r.Next(-strength / 2, strength / 2), r.Next(-strength / 2, strength / 2)));
         }
         public Vector3 GetRandomPosition(Vector3 center, int maxRange)
         {
@@ -525,13 +529,18 @@ namespace SpaceSim
 
         private Entity AddEntity(Space space, Entity entity, Model model, float scale, GameModelType gameModelType, int strength, int destructionDivisions, Type entityType)
         {
+            return AddEntity(space, entity, model, Matrix.CreateScale(scale, scale, scale), gameModelType, strength, destructionDivisions, entityType);
+        }
+
+        private Entity AddEntity(Space space, Entity entity, Model model, Matrix scale, GameModelType gameModelType, int strength, int destructionDivisions, Type entityType)
+        {
             space.Add(entity);
             DrawableGameComponent entityModel = null;
             if (entityType == typeof(EntityModel))
             {
-                entityModel = new EntityModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this);
+                entityModel = new EntityModel(entity, model, MathConverter.Convert(scale), this);
                 ((EntityModel)entityModel).GameModelType = gameModelType;
-                ((EntityModel)entityModel).Scale = scale;
+                ((EntityModel)entityModel).Scale = scale.M11;
                 ((EntityModel)entityModel).Strength = strength;
                 ((EntityModel)entityModel).MaxDestructionDivision = destructionDivisions;
                 entity.Tag = entityModel;
@@ -548,22 +557,23 @@ namespace SpaceSim
             }
             else if (entityType == typeof(PlanetModel))
             {
-                entityModel = new PlanetModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this);
+                entityModel = new PlanetModel(entity, model, MathConverter.Convert(scale), this);
                 entity.Tag = entityModel;
             }
             else if (entityType == typeof(ProjectileModel))
             {
                 //entityModel = new ProjectileModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this, explosionParticles, explosionSmokeParticles, projectileTrailParticles);
-                entityModel = new ProjectileModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this, explosionParticles, explosionSmokeParticles, customParticleSystem);
+                entityModel = new ProjectileModel(entity, model, MathConverter.Convert(scale), this, explosionParticles, explosionSmokeParticles, customParticleSystem);
                 entity.Tag = entityModel;
                 entity.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
+                entity.Orientation = entityShip.Orientation;
             }
             Components.Add(entityModel);
 
             return entity;
         }
 
-        private float ShipSpeed = 0, ShipWeaponFireReloadDuration = 0.5f;
+        private float ShipSpeed = 0, ShipWeaponFireReloadDuration = 0.1f;
         private DateTime ShipWeaponFired = DateTime.MinValue;
         private bool ShipWeaponAvailable { get { return (DateTime.Now - ShipWeaponFired).TotalSeconds >= ShipWeaponFireReloadDuration; } }
         List<Entity> projectiles = new List<Entity>();
@@ -573,9 +583,9 @@ namespace SpaceSim
             if (ShipWeaponAvailable)
             {
                 ShipWeaponFired = DateTime.Now;
-                Vector3 pos = MathConverter.Convert(entityShip.Position + (entityShip.WorldTransform.Forward * 5));
-                Entity projectile = AddEntity(space, new Sphere(MathConverter.Convert(pos), 2f, 1f), modelAsteroid, 0.1f, GameModelType.Projectile, 3, 3, typeof(ProjectileModel));
-                projectile.LinearVelocity = entityShip.WorldTransform.Forward * 30f;
+                Vector3 pos = MathConverter.Convert(entityShip.Position + (entityShip.WorldTransform.Forward * 1.3f));
+                Entity projectile = AddEntity(space, new Cylinder(MathConverter.Convert(pos), 0.5f, 0.1f, 0.01f), modelLaser, Matrix.CreateScale(0.02f, 0.02f, 0.01f), GameModelType.Projectile, 3, 3, typeof(ProjectileModel));
+                projectile.LinearVelocity = entityShip.WorldTransform.Forward * 40f;
                 projectiles.Add(projectile);
                 //projectiles.Add(new Projectile(MathConverter.Convert(entityShip.Position), MathConverter.Convert(entityShip.WorldTransform.Forward*10), explosionParticles, explosionSmokeParticles, projectileTrailParticles));
             }
@@ -758,7 +768,7 @@ namespace SpaceSim
         {
             int i = 0;
 
-            float maxDistanceToSelfDestruct = 50f;
+            float maxDistanceToSelfDestruct = 200f;
             while (i < projectiles.Count)
             {
                 Entity projectile = projectiles[i];
@@ -769,6 +779,7 @@ namespace SpaceSim
                     space.Remove(projectile);
                     Components.Remove(projectileModel);
                     projectiles.RemoveAt(i);
+                    ShowExplosion(MathConverter.Convert(projectile.Position), 1);
                 }
                 else
                 {
@@ -813,7 +824,6 @@ namespace SpaceSim
             customParticleSystem.SetCamera(camera.View, camera.Projection);
 
             // TODO: Add your drawing code here
-
             base.Draw(gameTime);
         }
 

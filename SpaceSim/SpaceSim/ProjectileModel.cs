@@ -75,7 +75,7 @@ namespace SpaceSim
 
             this.explosionParticles = explosionParticles;
             this.explosionSmokeParticles = explosionSmokeParticles;
-            this.trailEmitter = new ParticleEmitter(projectileTrailParticles,trailParticlesPerSecond, MathConverter.Convert(entity.Position));
+            //this.trailEmitter = new ParticleEmitter(projectileTrailParticles,trailParticlesPerSecond, MathConverter.Convert(entity.Position));
 
             //Collect any bone transformations in the model itself.
             //The default cube model doesn't have any, but this allows the EntityModel to work with more complicated shapes.
@@ -92,7 +92,7 @@ namespace SpaceSim
         public override void Update(GameTime gameTime)
         {
             // Update the particle emitter, which will create our particle trail.
-            trailEmitter.Update(gameTime, MathConverter.Convert(entity.Position));
+            //trailEmitter.Update(gameTime, MathConverter.Convert(entity.Position));
 
             base.Update(gameTime);
         }

@@ -23,8 +23,6 @@ namespace ParticleEngine
     public abstract class ParticleSystem : DrawableGameComponent
     {
         #region Fields
-
-
         // Settings class controls the appearance and animation of this particle system.
         ParticleSettings settings = new ParticleSettings();
 
@@ -391,7 +389,7 @@ namespace ParticleEngine
 
                 // Set an effect parameter describing the viewport size. This is
                 // needed to convert particle sizes into screen space point sizes.
-                effectViewportScaleParameter.SetValue(new Vector2(0.5f / device.Viewport.AspectRatio, -0.5f));
+                effectViewportScaleParameter.SetValue(new Vector2(0.5f / device.Viewport.AspectRatio, -0.5f)*settings.Scale);
 
                 // Set an effect parameter describing the current time. All the vertex
                 // shader particle animation is keyed off this value.
@@ -521,13 +519,11 @@ namespace ParticleEngine
 
             double horizontalAngle = random.NextDouble() * MathHelper.TwoPi;
 
-            velocity.X += horizontalVelocity * (float)Math.Cos(horizontalAngle);
-            velocity.Z += horizontalVelocity * (float)Math.Sin(horizontalAngle);
+            //velocity.X += horizontalVelocity * (float)Math.Cos(horizontalAngle);
+            //velocity.Z += horizontalVelocity * (float)Math.Sin(horizontalAngle);
 
             // Add in some random amount of vertical velocity.
-            velocity.Y += MathHelper.Lerp(settings.MinVerticalVelocity,
-                                          settings.MaxVerticalVelocity,
-                                          (float)random.NextDouble());
+            //velocity.Y += MathHelper.Lerp(settings.MinVerticalVelocity,settings.MaxVerticalVelocity,(float)random.NextDouble());
 
             // Choose four random control values. These will be used by the vertex
             // shader to give each particle a different size, rotation, and color.
