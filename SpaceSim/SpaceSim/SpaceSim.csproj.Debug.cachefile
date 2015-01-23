@@ -8,7 +8,6 @@ Content\Textures\star-small.xnb
 Content\Textures\explosion.xnb
 Content\Textures\fire.xnb
 Content\Textures\smoke.xnb
-Content\Textures\Cubemap1.xnb
 Content\Models\earth.xnb
 Content\Models\Ship.xnb
 Content\Models\cube.xnb
@@ -18,5 +17,7 @@ Content\Effects\earth.xnb
 Content\Effects\ParticleEffect.xnb
 Content\Effects\starfield.xnb
 Content\Models\ShipDiffuse_0.xnb
-Content\Textures\CubeMap_Eve1.xnb
 Content\Textures\Background1.xnb
+Content\BloomCombine.xnb
+Content\BloomExtract.xnb
+Content\GaussianBlur.xnb

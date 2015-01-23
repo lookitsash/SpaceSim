@@ -32,17 +32,19 @@ namespace SpaceSim
         SpriteFont spriteFont;
         public static ConsoleWindow ConsoleWindow;
 
-        KeyboardState lastKeyboardState = new KeyboardState();
-        MouseState lastMouseState = new MouseState();
+        KeyboardState previousKeyboardState = new KeyboardState();
         KeyboardState currentKeyboardState = new KeyboardState();
-        MouseState currentMouseState = new MouseState();
 
         Texture2D textureCockpit;
+
+        //public static BloomPostprocess.BloomComponent bloom;
 
         //Ship ship;
         Earth earth;
         public static ChaseCamera camera = null;
         Skybox skybox;
+
+        public static bool Paused = false;
 
         //StarfieldComponent starfieldComponent;
         //Starfield starfield;
@@ -88,6 +90,7 @@ namespace SpaceSim
             projectileTrailParticles = new ProjectileTrailParticleSystem(this, Content);
             smokePlumeParticles = new SmokePlumeParticleSystem(this, Content);
             fireParticles = new FireParticleSystem(this, Content);
+            customParticleSystem = new CustomParticleSystem(this, Content);
 
             // Set the draw order so the explosions and fire
             // will appear over the top of the smoke.
@@ -96,6 +99,7 @@ namespace SpaceSim
             projectileTrailParticles.DrawOrder = 300;
             explosionParticles.DrawOrder = 400;
             fireParticles.DrawOrder = 500;
+            customParticleSystem.DrawOrder = 600;
 
             // Register the particle system components.
             Components.Add(explosionParticles);
@@ -103,9 +107,167 @@ namespace SpaceSim
             Components.Add(projectileTrailParticles);
             Components.Add(smokePlumeParticles);
             Components.Add(fireParticles);
+            Components.Add(customParticleSystem);
 
             //starfield = new Starfield(this, 1000);
             //Components.Add(starfield);
+
+            savedMousePosX = -1;
+            savedMousePosY = -1;
+            mouseSmoothingCache = new Vector2[MOUSE_SMOOTHING_CACHE_SIZE];
+            mouseSmoothingSensitivity = DEFAULT_MOUSE_SMOOTHING_SENSITIVITY;
+            mouseIndex = 0;
+            mouseMovement = new Vector2[2];
+            mouseMovement[0].X = 0.0f;
+            mouseMovement[0].Y = 0.0f;
+            mouseMovement[1].X = 0.0f;
+            mouseMovement[1].Y = 0.0f;
+
+            //bloom = new BloomPostprocess.BloomComponent(this);
+            //Components.Add(bloom);
+            //bloom.Settings = new BloomPostprocess.BloomSettings(null, 0.25f, 4, 2, 1, 1.5f, 1);
+        }
+
+        /// <summary>
+        /// Event handler for when the game window acquires input focus.
+        /// </summary>
+        /// <param name="sender">Ignored.</param>
+        /// <param name="e">Ignored.</param>
+        private void HandleGameActivatedEvent(object sender, EventArgs e)
+        {
+            if (savedMousePosX >= 0 && savedMousePosY >= 0)
+                Mouse.SetPosition(savedMousePosX, savedMousePosY);
+        }
+
+        /// <summary>
+        /// Filters the mouse movement based on a weighted sum of mouse
+        /// movement from previous frames.
+        /// <para>
+        /// For further details see:
+        ///  Nettle, Paul "Smooth Mouse Filtering", flipCode's Ask Midnight column.
+        ///  http://www.flipcode.com/cgi-bin/fcarticles.cgi?show=64462
+        /// </para>
+        /// </summary>
+        /// <param name="x">Horizontal mouse distance from window center.</param>
+        /// <param name="y">Vertical mouse distance from window center.</param>
+        private void PerformMouseFiltering(float x, float y)
+        {
+            // Shuffle all the entries in the cache.
+            // Newer entries at the front. Older entries towards the back.
+            for (int i = mouseSmoothingCache.Length - 1; i > 0; --i)
+            {
+                mouseSmoothingCache[i].X = mouseSmoothingCache[i - 1].X;
+                mouseSmoothingCache[i].Y = mouseSmoothingCache[i - 1].Y;
+            }
+
+            // Store the current mouse movement entry at the front of cache.
+            mouseSmoothingCache[0].X = x;
+            mouseSmoothingCache[0].Y = y;
+
+            float averageX = 0.0f;
+            float averageY = 0.0f;
+            float averageTotal = 0.0f;
+            float currentWeight = 1.0f;
+
+            // Filter the mouse movement with the rest of the cache entries.
+            // Use a weighted average where newer entries have more effect than
+            // older entries (towards the back of the cache).
+            for (int i = 0; i < mouseSmoothingCache.Length; ++i)
+            {
+                averageX += mouseSmoothingCache[i].X * currentWeight;
+                averageY += mouseSmoothingCache[i].Y * currentWeight;
+                averageTotal += 1.0f * currentWeight;
+                currentWeight *= mouseSmoothingSensitivity;
+            }
+
+            // Calculate the new smoothed mouse movement.
+            smoothedMouseMovement.X = averageX / averageTotal;
+            smoothedMouseMovement.Y = averageY / averageTotal;
+        }
+
+        /// <summary>
+        /// Averages the mouse movement over a couple of frames to smooth out
+        /// the mouse movement.
+        /// </summary>
+        /// <param name="x">Horizontal mouse distance from window center.</param>
+        /// <param name="y">Vertical mouse distance from window center.</param>
+        private void PerformMouseSmoothing(float x, float y)
+        {
+            mouseMovement[mouseIndex].X = x;
+            mouseMovement[mouseIndex].Y = y;
+
+            smoothedMouseMovement.X = (mouseMovement[0].X + mouseMovement[1].X) * 0.5f;
+            smoothedMouseMovement.Y = (mouseMovement[0].Y + mouseMovement[1].Y) * 0.5f;
+
+            mouseIndex ^= 1;
+            mouseMovement[mouseIndex].X = 0.0f;
+            mouseMovement[mouseIndex].Y = 0.0f;
+        }
+
+        /// <summary>
+        /// Resets all mouse states. This is called whenever the mouse input
+        /// behavior switches from click-and-drag mode to real-time mode.
+        /// </summary>
+        private void ResetMouse()
+        {
+            currentMouseState = Mouse.GetState();
+            previousMouseState = currentMouseState;
+
+            for (int i = 0; i < mouseMovement.Length; ++i)
+                mouseMovement[i] = Vector2.Zero;
+
+            for (int i = 0; i < mouseSmoothingCache.Length; ++i)
+                mouseSmoothingCache[i] = Vector2.Zero;
+
+            savedMousePosX = -1;
+            savedMousePosY = -1;
+
+            smoothedMouseMovement = Vector2.Zero;
+            mouseIndex = 0;
+
+            Rectangle clientBounds = Window.ClientBounds;
+
+            int centerX = clientBounds.Width / 2;
+            int centerY = clientBounds.Height / 2;
+            int deltaX = centerX - currentMouseState.X;
+            int deltaY = centerY - currentMouseState.Y;
+
+            Mouse.SetPosition(centerX, centerY);
+        }
+
+        /// <summary>
+        /// Determines which way the mouse wheel has been rolled.
+        /// The returned value is in the range [-1,1].
+        /// </summary>
+        /// <returns>
+        /// A positive value indicates that the mouse wheel has been rolled
+        /// towards the player. A negative value indicates that the mouse
+        /// wheel has been rolled away from the player.
+        /// </returns>
+        private float GetMouseWheelDirection()
+        {
+            int currentWheelValue = currentMouseState.ScrollWheelValue;
+            int previousWheelValue = previousMouseState.ScrollWheelValue;
+
+            if (currentWheelValue > previousWheelValue)
+                return 1.0f;
+            else if (currentWheelValue < previousWheelValue)
+                return -1.0f;
+            else
+                return 0.0f;
+        }
+
+        /// <summary>
+        /// Event hander for when the game window loses input focus.
+        /// </summary>
+        /// <param name="sender">Ignored.</param>
+        /// <param name="e">Ignored.</param>
+        private void HandleGameDeactivatedEvent(object sender, EventArgs e)
+        {
+            MouseState state = Mouse.GetState();
+
+            savedMousePosX = state.X;
+            savedMousePosY = state.Y;
         }
 
         private void OnConsoleInput(string str)
@@ -135,6 +297,9 @@ namespace SpaceSim
         protected override void Initialize()
         {
             base.Initialize();
+
+            Rectangle clientBounds = Window.ClientBounds;
+            Mouse.SetPosition(clientBounds.Width / 2, clientBounds.Height / 2);
 
             graphics.PreferredBackBufferWidth = GraphicsDevice.DisplayMode.Width / 2;
             graphics.PreferredBackBufferHeight = GraphicsDevice.DisplayMode.Height / 2;
@@ -210,7 +375,8 @@ namespace SpaceSim
 
             entityShip = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 250), 1, 100), modelShip, .001f, GameModelType.Ship, 0, 0, typeof(EntityModel));
             entityShip.AngularDamping = 0.9f;
-            entityShip.LinearDamping = 0.9f;
+            //entityShip.LinearDamping = 0.9f;
+            entityShip.LinearDamping = 0.0f;
             entityShip.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
 
             entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -200), 205), modelEarth, 50f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
@@ -262,6 +428,7 @@ namespace SpaceSim
         ParticleSystem projectileTrailParticles;
         ParticleSystem smokePlumeParticles;
         ParticleSystem fireParticles;
+        ParticleSystem customParticleSystem;
 
         void HandleCollision(EntityCollidable sender, Collidable other, CollidablePairHandler pair)
         {
@@ -314,6 +481,10 @@ namespace SpaceSim
                             }
                         }
                     }
+                }
+                else if (sender.Entity.Tag is ProjectileModel)
+                {
+                    ((ProjectileModel)sender.Entity.Tag).DestroyNow = true;
                 }
             }
         }
@@ -380,13 +551,34 @@ namespace SpaceSim
                 entityModel = new PlanetModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this);
                 entity.Tag = entityModel;
             }
+            else if (entityType == typeof(ProjectileModel))
+            {
+                //entityModel = new ProjectileModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this, explosionParticles, explosionSmokeParticles, projectileTrailParticles);
+                entityModel = new ProjectileModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this, explosionParticles, explosionSmokeParticles, customParticleSystem);
+                entity.Tag = entityModel;
+                entity.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
+            }
             Components.Add(entityModel);
 
             return entity;
         }
 
+        private float ShipSpeed = 0, ShipWeaponFireReloadDuration = 0.5f;
+        private DateTime ShipWeaponFired = DateTime.MinValue;
+        private bool ShipWeaponAvailable { get { return (DateTime.Now - ShipWeaponFired).TotalSeconds >= ShipWeaponFireReloadDuration; } }
+        List<Entity> projectiles = new List<Entity>();
+
         private void FireWeapon()
         {
+            if (ShipWeaponAvailable)
+            {
+                ShipWeaponFired = DateTime.Now;
+                Vector3 pos = MathConverter.Convert(entityShip.Position + (entityShip.WorldTransform.Forward * 5));
+                Entity projectile = AddEntity(space, new Sphere(MathConverter.Convert(pos), 2f, 1f), modelAsteroid, 0.1f, GameModelType.Projectile, 3, 3, typeof(ProjectileModel));
+                projectile.LinearVelocity = entityShip.WorldTransform.Forward * 30f;
+                projectiles.Add(projectile);
+                //projectiles.Add(new Projectile(MathConverter.Convert(entityShip.Position), MathConverter.Convert(entityShip.WorldTransform.Forward*10), explosionParticles, explosionSmokeParticles, projectileTrailParticles));
+            }
         }
 
         /// <summary>
@@ -398,6 +590,19 @@ namespace SpaceSim
             // TODO: Unload any non ContentManager content here
         }
 
+        private const float DEFAULT_MOUSE_SMOOTHING_SENSITIVITY = 0.5f;
+        private const int MOUSE_SMOOTHING_CACHE_SIZE = 10;
+
+        private int savedMousePosX;
+        private int savedMousePosY;
+        private int mouseIndex;
+        private float mouseSmoothingSensitivity;
+        private Vector2[] mouseMovement;
+        private Vector2[] mouseSmoothingCache;
+        private Vector2 smoothedMouseMovement;
+        private MouseState currentMouseState;
+        private MouseState previousMouseState;
+
         /// <summary>
         /// Allows the game to run logic such as updating the world,
         /// checking for collisions, gathering input, and playing audio.
@@ -405,8 +610,8 @@ namespace SpaceSim
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
-            lastKeyboardState = currentKeyboardState;
-            lastMouseState = currentMouseState;
+            previousKeyboardState = currentKeyboardState;
+            previousMouseState = currentMouseState;
 
             currentKeyboardState = Keyboard.GetState();
             currentMouseState = Mouse.GetState();
@@ -417,23 +622,27 @@ namespace SpaceSim
                 Exit();
             }
 
-            bool touchTopLeft = currentMouseState.LeftButton == ButtonState.Pressed &&
-                    lastMouseState.LeftButton != ButtonState.Pressed &&
-                    currentMouseState.X < GraphicsDevice.Viewport.Width / 10 &&
-                    currentMouseState.Y < GraphicsDevice.Viewport.Height / 10;
-
 
             // Pressing the A button or key toggles the spring behavior on and off
-            if (lastKeyboardState.IsKeyUp(Keys.A) && (currentKeyboardState.IsKeyDown(Keys.A)) || touchTopLeft)
+            if (previousKeyboardState.IsKeyUp(Keys.P) && (currentKeyboardState.IsKeyDown(Keys.P)))
             {
-                //cameraSpringEnabled = !cameraSpringEnabled;
+                Paused = !Paused;
+                IsMouseVisible = Paused;
             }
 
-            if (lastKeyboardState.IsKeyUp(Keys.RightControl) && (currentKeyboardState.IsKeyDown(Keys.RightControl)))
+            if (Paused) return;
+
+            if (currentKeyboardState.IsKeyDown(Keys.Space))
             {
                 FireWeapon();
             }
 
+            /*
+            if (previousKeyboardState.IsKeyUp(Keys.RightControl) && (currentKeyboardState.IsKeyDown(Keys.RightControl)))
+            {
+                FireWeapon();
+            }
+            
             if (currentKeyboardState.IsKeyDown(Keys.A))
             {
                 entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0.05f), 1.0f);
@@ -469,9 +678,43 @@ namespace SpaceSim
             {
                 entityShip.LinearVelocity = entityShip.WorldTransform.Forward * -5;
             }
+            */
 
+            if (!Paused)
+            {
+                Rectangle clientBounds = Window.ClientBounds;
+
+                int centerX = clientBounds.Width / 2;
+                int centerY = clientBounds.Height / 2;
+                int deltaX = centerX - currentMouseState.X;
+                int deltaY = centerY - currentMouseState.Y;
+
+                Mouse.SetPosition(centerX, centerY);
+
+                PerformMouseFiltering((float)deltaX, (float)deltaY);
+                PerformMouseSmoothing(smoothedMouseMovement.X, smoothedMouseMovement.Y);
+
+                float dx = smoothedMouseMovement.X;
+                float dy = smoothedMouseMovement.Y;
+
+                if (dx != 0) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, dx * 0.01f), 1.0f);
+                if (dy != 0) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, dy * -0.01f), 1.0f);
+
+                if (currentMouseState.LeftButton == ButtonState.Pressed) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, -0.15f), 1.0f);
+                if (currentMouseState.RightButton == ButtonState.Pressed) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0.15f), 1.0f);
+
+                float maxForwardSpeed = 20;
+                float maxReverseSpeed = -5;
+                float mouseWheelDirection = GetMouseWheelDirection();
+                if (mouseWheelDirection > 0) ShipSpeed++;
+                else if (mouseWheelDirection < 0) ShipSpeed--;
+                else if (currentMouseState.MiddleButton == ButtonState.Pressed) ShipSpeed = 0;
+                ShipSpeed = Math.Max(maxReverseSpeed, Math.Min(ShipSpeed, maxForwardSpeed));
+                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * ShipSpeed;
+            }
+            //ConsoleWindow.Log(dx + "," + dy);
             
-
+            
             //ConsoleWindow.Log(entityShip.WorldTransform.Up.ToString());
             //entityShip.WorldTransform.U
 
@@ -503,9 +746,36 @@ namespace SpaceSim
             ProcessQueuedExplosions();
 
 
-            //UpdateStarfield();
+            UpdateProjectiles(gameTime);
 
             base.Update(gameTime);
+        }
+
+        /// <summary>
+        /// Helper for updating the list of active projectiles.
+        /// </summary>
+        void UpdateProjectiles(GameTime gameTime)
+        {
+            int i = 0;
+
+            float maxDistanceToSelfDestruct = 50f;
+            while (i < projectiles.Count)
+            {
+                Entity projectile = projectiles[i];
+                ProjectileModel projectileModel = (ProjectileModel)projectile.Tag;
+                if (projectileModel.DestroyNow || projectileModel.DistanceTravelled >= maxDistanceToSelfDestruct)
+                {
+                    // Remove projectiles at the end of their life.
+                    space.Remove(projectile);
+                    Components.Remove(projectileModel);
+                    projectiles.RemoveAt(i);
+                }
+                else
+                {
+                    // Advance to the next projectile.
+                    i++;
+                }
+            }
         }
 
         /// <summary>
@@ -515,7 +785,7 @@ namespace SpaceSim
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.Black);
-            
+
             RasterizerState originalRasterizerState = graphics.GraphicsDevice.RasterizerState;
             RasterizerState rasterizerState = new RasterizerState();
             rasterizerState.CullMode = CullMode.None;
@@ -540,6 +810,7 @@ namespace SpaceSim
             projectileTrailParticles.SetCamera(camera.View, camera.Projection);
             smokePlumeParticles.SetCamera(camera.View, camera.Projection);
             fireParticles.SetCamera(camera.View, camera.Projection);
+            customParticleSystem.SetCamera(camera.View, camera.Projection);
 
             // TODO: Add your drawing code here
 

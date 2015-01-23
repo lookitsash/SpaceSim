@@ -25,13 +25,13 @@ namespace ParticleEngine
     {
         #region Constants
 
-        const float trailParticlesPerSecond = 200;
-        const int numExplosionParticles = 30;
-        const int numExplosionSmokeParticles = 50;
-        const float projectileLifespan = 1.5f;
+        const float trailParticlesPerSecond = 20;
+        const int numExplosionParticles = 3;
+        const int numExplosionSmokeParticles = 5;
+        const float projectileLifespan = 10f;
         const float sidewaysVelocityRange = 60;
         const float verticalVelocityRange = 40;
-        const float gravity = 15;
+        const float gravity = 0;
 
         #endregion
 
@@ -53,19 +53,19 @@ namespace ParticleEngine
         /// <summary>
         /// Constructs a new projectile.
         /// </summary>
-        public Projectile(ParticleSystem explosionParticles,
+        public Projectile(Vector3 position, Vector3 velocity, ParticleSystem explosionParticles,
                           ParticleSystem explosionSmokeParticles,
                           ParticleSystem projectileTrailParticles)
         {
             this.explosionParticles = explosionParticles;
             this.explosionSmokeParticles = explosionSmokeParticles;
 
-            // Start at the origin, firing in a random (but roughly upward) direction.
-            position = Vector3.Zero;
+            this.position = position;
 
-            velocity.X = (float)(random.NextDouble() - 0.5) * sidewaysVelocityRange;
-            velocity.Y = (float)(random.NextDouble() + 0.5) * verticalVelocityRange;
-            velocity.Z = (float)(random.NextDouble() - 0.5) * sidewaysVelocityRange;
+            //velocity.X = (float)(random.NextDouble() - 0.5) * sidewaysVelocityRange;
+            //velocity.Y = (float)(random.NextDouble() + 0.5) * verticalVelocityRange;
+            //velocity.Z = (float)(random.NextDouble() - 0.5) * sidewaysVelocityRange;
+            this.velocity = velocity;
 
             // Use the particle emitter helper to output our trail particles.
             trailEmitter = new ParticleEmitter(projectileTrailParticles,
@@ -82,7 +82,7 @@ namespace ParticleEngine
 
             // Simple projectile physics.
             position += velocity * elapsedTime;
-            velocity.Y -= elapsedTime * gravity;
+            //velocity.Y -= elapsedTime * gravity;
             age += elapsedTime;
 
             // Update the particle emitter, which will create our particle trail.
@@ -93,12 +93,13 @@ namespace ParticleEngine
             // by the speed and direction of the projectile which created it.
             if (age > projectileLifespan)
             {
+                /*
                 for (int i = 0; i < numExplosionParticles; i++)
                     explosionParticles.AddParticle(position, velocity);
 
                 for (int i = 0; i < numExplosionSmokeParticles; i++)
                     explosionSmokeParticles.AddParticle(position, velocity);
-
+                */
                 return false;
             }
                 

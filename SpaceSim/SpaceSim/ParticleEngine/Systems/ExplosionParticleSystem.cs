@@ -30,7 +30,7 @@ namespace ParticleEngine
         {
             settings.TextureName = "Textures/explosion";
 
-            settings.MaxParticles = 10000;
+            settings.MaxParticles = 1000;
 
             settings.Duration = TimeSpan.FromSeconds(2);
             settings.DurationRandomness = 1;

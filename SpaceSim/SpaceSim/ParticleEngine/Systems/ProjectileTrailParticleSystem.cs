@@ -30,7 +30,7 @@ namespace ParticleEngine
         {
             settings.TextureName = "Textures/smoke";
 
-            settings.MaxParticles = 1000;
+            settings.MaxParticles = 10;
 
             settings.Duration = TimeSpan.FromSeconds(3);
 

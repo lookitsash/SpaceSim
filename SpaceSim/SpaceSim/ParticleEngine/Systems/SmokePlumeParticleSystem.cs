@@ -30,7 +30,7 @@ namespace ParticleEngine
         {
             settings.TextureName = "Textures/smoke";
 
-            settings.MaxParticles = 600;
+            settings.MaxParticles = 60;
 
             settings.Duration = TimeSpan.FromSeconds(10);
 
@@ -41,7 +41,7 @@ namespace ParticleEngine
             settings.MaxVerticalVelocity = 20;
 
             // Create a wind effect by tilting the gravity vector sideways.
-            settings.Gravity = new Vector3(-20, -5, 0);
+            settings.Gravity = Vector3.Zero; //new Vector3(-20, -5, 0);
 
             settings.EndVelocity = 0.75f;
 

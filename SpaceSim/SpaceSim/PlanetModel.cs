@@ -9,7 +9,8 @@ namespace SpaceSim
     {
         Planet,
         Ship,
-        Asteroid
+        Asteroid,
+        Projectile
     }
 
     /// <summary>
