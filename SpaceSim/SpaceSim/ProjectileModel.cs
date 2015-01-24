@@ -89,6 +89,10 @@ namespace SpaceSim
             }
         }
 
+        protected override void LoadContent()
+        {
+        }
+
         public override void Update(GameTime gameTime)
         {
             // Update the particle emitter, which will create our particle trail.

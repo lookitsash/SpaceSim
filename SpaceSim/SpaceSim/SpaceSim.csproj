@@ -160,6 +160,7 @@
     <Compile Include="Skybox.cs" />
     <Compile Include="SpaceSimGame.cs" />
     <Compile Include="Ship.cs" />
+    <Compile Include="TargetedGraphicsDeviceManager.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Game.ico" />

@@ -1,32 +1,22 @@
-// Pixel shader applies a one dimensional gaussian blur filter.
-// This is used twice by the bloom postprocess, first to
-// blur horizontally, and then again to blur vertically.
+sampler2D tex[1];
 
-sampler TextureSampler : register(s0);
+float2 Offsets[15];
+float Weights[15];
 
-#define SAMPLE_COUNT 15
-
-float2 SampleOffsets[SAMPLE_COUNT];
-float SampleWeights[SAMPLE_COUNT];
-
-
-float4 PixelShaderFunction(float2 texCoord : TEXCOORD0) : COLOR0
+float4 PixelShaderFunction(float4 Position : POSITION0, 
+	float2 UV : TEXCOORD0) : COLOR0
 {
-    float4 c = 0;
+    float4 output = float4(0, 0, 0, 1);
     
-    // Combine a number of weighted image filter taps.
-    for (int i = 0; i < SAMPLE_COUNT; i++)
-    {
-        c += tex2D(TextureSampler, texCoord + SampleOffsets[i]) * SampleWeights[i];
-    }
-    
-    return c;
+    for (int i = 0; i < 15; i++)
+	output += tex2D(tex[0], UV + Offsets[i]) * Weights[i];
+		
+	return output;
 }
 
-
-technique GaussianBlur
+technique Technique1
 {
-    pass Pass1
+    pass p0
     {
         PixelShader = compile ps_2_0 PixelShaderFunction();
     }

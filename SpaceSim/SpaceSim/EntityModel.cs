@@ -53,40 +53,104 @@ namespace SpaceSim
             this.model = model;
             this.Transform = transform;
 
+            /*
+            cModel = new CModel(model, MathConverter.Convert(entity.Position), Vector3.Zero, Vector3.One, game.GraphicsDevice);
+
+            renderCapture = new RenderCapture(game.GraphicsDevice);
+            glowCapture = new RenderCapture(game.GraphicsDevice);
+            glowEffect = Game.Content.Load<Effect>("GlowEffect");
+            glowTexture = Game.Content.Load<Texture2D>("glow_map");
+            glowEffect.Parameters["GlowTexture"].SetValue(glowTexture);
+            blur = new GaussianBlur(game.GraphicsDevice, Game.Content, 4);
+            */
+
             //Collect any bone transformations in the model itself.
             //The default cube model doesn't have any, but this allows the EntityModel to work with more complicated shapes.
+            
             boneTransforms = new Matrix[model.Bones.Count];
+
             foreach (ModelMesh mesh in model.Meshes)
             {
                 foreach (BasicEffect effect in mesh.Effects)
                 {
                     effect.EnableDefaultLighting();
+                    //effect.TextureEnabled = true;
+                    //effect.Texture = glowTexture;
                 }
             }
+
+            
+        }
+
+        RenderCapture renderCapture;
+        RenderCapture glowCapture;
+        Effect glowEffect;
+        GaussianBlur blur;
+        Texture2D glowTexture;
+
+        protected override void LoadContent()
+        {
+            
+        }
+
+        CModel cModel;
+
+        public override void Initialize()
+        {
+            base.Initialize();
+
+            
         }
 
         public override void Draw(GameTime gameTime)
         {
-            //Notice that the entity's worldTransform property is being accessed here.
-            //This property is returns a rigid transformation representing the orientation
-            //and translation of the entity combined.
-            //There are a variety of properties available in the entity, try looking around
-            //in the list to familiarize yourself with it.
+            bool abortDraw = false;
 
-            Matrix worldMatrix = MathConverter.Convert(Transform * entity.WorldTransform);
-
-
-            model.CopyAbsoluteBoneTransformsTo(boneTransforms);
-            foreach (ModelMesh mesh in model.Meshes)
+            if (GameModelType == SpaceSim.GameModelType.Asteroid)
             {
-                foreach (BasicEffect effect in mesh.Effects)
-                {
-                    effect.World = boneTransforms[mesh.ParentBone.Index] * worldMatrix;
-                    effect.View = SpaceSimGame.camera.View;
-                    effect.Projection = SpaceSimGame.camera.Projection;
-                }
-                mesh.Draw();
+                float distanceFromPlayer = BEPUutilities.Vector3.Distance(SpaceSimGame.entityShip.Position, entity.Position);
+                if (distanceFromPlayer >= 1000) abortDraw = true;
             }
+
+            if (!abortDraw)
+            {
+                Matrix worldMatrix = MathConverter.Convert(Transform * entity.WorldTransform);
+                /*
+                // Begin capturing the glow render
+                glowCapture.Begin();
+                Game.GraphicsDevice.Clear(Color.Black);
+
+                //cModel.Model.
+                cModel.CacheEffects();
+                cModel.SetModelEffect(glowEffect, false);
+                cModel.Draw(SpaceSimGame.camera.View, SpaceSimGame.camera.Projection, SpaceSimGame.camera.Position, worldMatrix);
+                cModel.RestoreEffects();
+
+                // Finish capturing the glow
+                glowCapture.End();
+
+                //SpaceSimGame.graphics.GraphicsDevice.BlendState = BlendState.Opaque;
+                //SpaceSimGame.graphics.GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+                //Notice that the entity's worldTransform property is being accessed here.
+                //This property is returns a rigid transformation representing the orientation
+                //and translation of the entity combined.
+                //There are a variety of properties available in the entity, try looking around
+                //in the list to familiarize yourself with it.
+                */
+
+                model.CopyAbsoluteBoneTransformsTo(boneTransforms);
+                foreach (ModelMesh mesh in model.Meshes)
+                {
+                    foreach (BasicEffect effect in mesh.Effects)
+                    {
+                        effect.World = boneTransforms[mesh.ParentBone.Index] * worldMatrix;
+                        effect.View = SpaceSimGame.camera.View;
+                        effect.Projection = SpaceSimGame.camera.Projection;
+                    }
+                    mesh.Draw();
+                }
+            }
+
             base.Draw(gameTime);
         }
     }

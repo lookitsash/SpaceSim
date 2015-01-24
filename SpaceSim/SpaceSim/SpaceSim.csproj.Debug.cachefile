@@ -22,3 +22,8 @@ Content\BloomCombine.xnb
 Content\BloomExtract.xnb
 Content\GaussianBlur.xnb
 Content\Models\Laser.xnb
+Content\Fonts\Font1.xnb
+Content\Effects\Blur.xnb
+Content\GlowEffect.xnb
+Content\LightingEffect.xnb
+Content\glow_map.xnb

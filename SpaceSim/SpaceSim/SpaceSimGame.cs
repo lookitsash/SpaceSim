@@ -27,7 +27,10 @@ namespace SpaceSim
     {
         Space space;
 
-        GraphicsDeviceManager graphics;
+        private int framesPerSecond, frames;
+        private TimeSpan elapsedTime = TimeSpan.Zero;
+
+        public static GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
         SpriteFont spriteFont;
         public static ConsoleWindow ConsoleWindow;
@@ -60,7 +63,9 @@ namespace SpaceSim
 
         public SpaceSimGame()
         {
+            //graphics = new TargetedGraphicsDeviceManager(this, 1);
             graphics = new GraphicsDeviceManager(this);
+            //new GraphicsDeviceManager
             Content.RootDirectory = "Content";
 
             IsFixedTimeStep = false;
@@ -314,7 +319,7 @@ namespace SpaceSim
 
             // Set camera perspective
             camera.NearPlaneDistance = 0.1f;
-            camera.FarPlaneDistance = 1000.0f;
+            camera.FarPlaneDistance = 100000.0f;
 
             //EntityCollection.Add(ship = new Ship(GraphicsDevice, modelShip));
             //ship.Position = new Vector3(0, 0, 44000);
@@ -345,6 +350,8 @@ namespace SpaceSim
 
         public static Entity entityShip, entityEarth, entityAsteroid;
 
+        public static Effect effectBlur;
+
         /// <summary>
         /// LoadContent will be called once per game and is the place to load
         /// all of your content.
@@ -354,12 +361,16 @@ namespace SpaceSim
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
+            effectBlur = Content.Load<Effect>("Effects/Blur");
+
             textureCockpit = Content.Load<Texture2D>("Textures/Cockpit6");
 
             modelShip = Content.Load<Model>("Models/Ship");
             modelEarth = Content.Load<Model>("Models/earth");
             modelAsteroid = Content.Load<Model>("Models/asteroid");
             modelLaser = Content.Load<Model>("Models/Laser");
+
+            spriteFont = Content.Load<SpriteFont>("Fonts/Font1");
 
             /*
             BoundingSphere bounds = new BoundingSphere();
@@ -383,9 +394,10 @@ namespace SpaceSim
             entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -200), 205), modelEarth, 50f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
             entityEarth.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
 
-            AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
-            AddEntity(space, new Sphere(new BEPUutilities.Vector3(-10, 0, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
-            AddEntity(space, new Sphere(new BEPUutilities.Vector3(10, 0, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
+            GenerateAsteroids();
+            //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
+            //AddEntity(space, new Sphere(new BEPUutilities.Vector3(-10, 0, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
+            //AddEntity(space, new Sphere(new BEPUutilities.Vector3(10, 0, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
 
             space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
 
@@ -424,6 +436,34 @@ namespace SpaceSim
             */
         }
 
+        private void GenerateAsteroids()
+        {
+            ConsoleWindow.Log("Generating asteroids...");
+            ConsoleWindow.TimerStart();
+            IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
+
+            int maxAsteroids = 1000, maxRange = 2000, maxPlacementAttempts = 10, asteroidsCreated = 0;
+            float minRadius = 0.5f, maxRadius = 10f;
+            Random r = new Random();
+            for (int i = 0; i < maxAsteroids; i++)
+            {
+                overlaps.Clear();
+                for (int j = 0; j < maxPlacementAttempts; j++)
+                {
+                    BEPUutilities.Vector3 pos = new BEPUutilities.Vector3(r.Next(-maxRange / 2, maxRange / 2), r.Next(-maxRange / 2, maxRange / 2), r.Next(-maxRange / 2, maxRange / 2));
+                    float radius = ((float)r.NextDouble() * (maxRadius - minRadius)) + minRadius;
+                    space.BroadPhase.QueryAccelerator.GetEntries(new BEPUutilities.BoundingBox(new BEPUutilities.Vector3(pos.X - radius, pos.Y - radius, pos.Z - radius), new BEPUutilities.Vector3(pos.X + radius, pos.Y + radius, pos.Z + radius)), overlaps);
+                    if (overlaps.Count == 0)
+                    {
+                        AddEntity(space, new Sphere(pos, radius, 1000), modelAsteroid, radius * 5.0f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
+                        asteroidsCreated++;
+                        break;
+                    }
+                }
+            }
+            ConsoleWindow.Log(asteroidsCreated + " asteroids created in " + ConsoleWindow.TimerStop().TotalSeconds + " sec");
+        }
+
         ParticleSystem explosionParticles;
         ParticleSystem explosionSmokeParticles;
         ParticleSystem projectileTrailParticles;
@@ -448,9 +488,10 @@ namespace SpaceSim
                         //Remove the graphics too.
                         Components.Remove((EntityModel)otherEntityInformation.Entity.Tag);
 
-                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0);
-                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0.1f);
-                        QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0.2f);
+                        //QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0);
+                        //QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0.1f);
+                        //QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0.2f);
+                        ShowExplosion(MathConverter.Convert(otherEntityInformation.Entity.Position), 5);
 
                         //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 100, 1000), modelAsteroid, 500f, typeof(EntityModel));
                         //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 100, 1000), modelAsteroid, 500f, typeof(EntityModel));
@@ -547,11 +588,12 @@ namespace SpaceSim
 
                 if (gameModelType == GameModelType.Asteroid)
                 {
+                    Random r = new Random();
                     entity.AngularDamping = 0;
                     entity.LinearDamping = 0;
-                    float xRotRnd = (new Random().NextDouble() * new Random().Next(0, 1) == 1 ? 1 : -1);
-                    float yRotRnd = (new Random().NextDouble() * new Random().Next(0, 1) == 1 ? 1 : -1);
-                    float zRotRnd = (new Random().NextDouble() * new Random().Next(0, 1) == 1 ? 1 : -1);
+                    float xRotRnd = ((float)r.NextDouble() * (float)(r.Next(1, 3) == 1 ? 1 : -1));
+                    float yRotRnd = ((float)r.NextDouble() * (float)(r.Next(1, 3) == 1 ? 1 : -1));
+                    float zRotRnd = ((float)r.NextDouble() * (float)(r.Next(1, 3) == 1 ? 1 : -1));
                     entity.AngularVelocity = new BEPUutilities.Vector3(xRotRnd, yRotRnd, zRotRnd);
                 }
             }
@@ -585,7 +627,7 @@ namespace SpaceSim
                 ShipWeaponFired = DateTime.Now;
                 Vector3 pos = MathConverter.Convert(entityShip.Position + (entityShip.WorldTransform.Forward * 1.3f));
                 Entity projectile = AddEntity(space, new Cylinder(MathConverter.Convert(pos), 0.5f, 0.1f, 0.01f), modelLaser, Matrix.CreateScale(0.02f, 0.02f, 0.01f), GameModelType.Projectile, 3, 3, typeof(ProjectileModel));
-                projectile.LinearVelocity = entityShip.WorldTransform.Forward * 40f;
+                projectile.LinearVelocity = entityShip.WorldTransform.Forward * (40f + ShipSpeed);
                 projectiles.Add(projectile);
                 //projectiles.Add(new Projectile(MathConverter.Convert(entityShip.Position), MathConverter.Convert(entityShip.WorldTransform.Forward*10), explosionParticles, explosionSmokeParticles, projectileTrailParticles));
             }
@@ -713,11 +755,12 @@ namespace SpaceSim
                 if (currentMouseState.LeftButton == ButtonState.Pressed) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, -0.15f), 1.0f);
                 if (currentMouseState.RightButton == ButtonState.Pressed) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0.15f), 1.0f);
 
-                float maxForwardSpeed = 20;
-                float maxReverseSpeed = -5;
+                float maxForwardSpeed = 50;
+                float maxReverseSpeed = -50;
+                int speedIncrement = 2;
                 float mouseWheelDirection = GetMouseWheelDirection();
-                if (mouseWheelDirection > 0) ShipSpeed++;
-                else if (mouseWheelDirection < 0) ShipSpeed--;
+                if (mouseWheelDirection > 0) ShipSpeed+=speedIncrement;
+                else if (mouseWheelDirection < 0) ShipSpeed -= speedIncrement;
                 else if (currentMouseState.MiddleButton == ButtonState.Pressed) ShipSpeed = 0;
                 ShipSpeed = Math.Max(maxReverseSpeed, Math.Min(ShipSpeed, maxForwardSpeed));
                 entityShip.LinearVelocity = entityShip.WorldTransform.Forward * ShipSpeed;
@@ -757,7 +800,7 @@ namespace SpaceSim
 
 
             UpdateProjectiles(gameTime);
-
+            UpdateFrameRate(gameTime);
             base.Update(gameTime);
         }
 
@@ -789,6 +832,25 @@ namespace SpaceSim
             }
         }
 
+        private void UpdateFrameRate(GameTime gameTime)
+        {
+            elapsedTime += gameTime.ElapsedGameTime;
+
+            if (elapsedTime > TimeSpan.FromSeconds(1))
+            {
+                elapsedTime -= TimeSpan.FromSeconds(1);
+                framesPerSecond = frames;
+                frames = 0;
+            }
+        }
+
+        private void IncrementFrameCounter()
+        {
+            ++frames;
+        }
+
+        Vector2 fpsFontPos = new Vector2(1.0f, 1.0f);
+
         /// <summary>
         /// This is called when the game should draw itself.
         /// </summary>
@@ -796,6 +858,8 @@ namespace SpaceSim
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.Black);
+
+            //bloom.BeginDraw();
 
             RasterizerState originalRasterizerState = graphics.GraphicsDevice.RasterizerState;
             RasterizerState rasterizerState = new RasterizerState();
@@ -825,6 +889,30 @@ namespace SpaceSim
 
             // TODO: Add your drawing code here
             base.Draw(gameTime);
+
+            /*
+            effectBlur.CurrentTechnique = effectBlur.Techniques["Blur"];
+
+            spriteBatch.Begin();
+            //spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+            GraphicsDevice.BlendState = BlendState.Additive;
+            foreach (EffectPass pass in effectBlur.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                spriteBatch.DrawString(spriteFont, "FPS: " + framesPerSecond, fpsFontPos, Color.Yellow);
+            }
+            */
+
+            ///*
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+            spriteBatch.DrawString(spriteFont, "FPS: " + framesPerSecond, fpsFontPos, Color.Yellow);
+            // */
+            spriteBatch.End();
+
+            GraphicsDevice.BlendState = BlendState.Opaque;
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+
+            IncrementFrameCounter();
         }
 
         /// <summary>
@@ -946,5 +1034,457 @@ namespace SpaceSim
         public DateTime DetonationTime;
         public Vector3 Position;
         public int Strength;
+    }
+
+    public class RenderCapture
+    {
+        RenderTarget2D renderTarget;
+        GraphicsDevice graphicsDevice;
+        public RenderCapture(GraphicsDevice GraphicsDevice)
+        {
+            this.graphicsDevice = GraphicsDevice;
+            renderTarget = new RenderTarget2D(GraphicsDevice,
+            GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height,
+            false, SurfaceFormat.Color, DepthFormat.Depth24);
+        }
+        // Begins capturing from the graphics device
+        public void Begin()
+        {
+            graphicsDevice.SetRenderTarget(renderTarget);
+        }
+        // Stop capturing
+        public void End()
+        {
+            graphicsDevice.SetRenderTarget(null);
+        }
+        // Returns what was captured
+        public Texture2D GetTexture()
+        {
+            return renderTarget;
+        }
+    }
+
+    public class PostProcessor
+    {
+        // Pixel shader
+        public Effect Effect { get; protected set; }
+
+        // Texture to process
+        public Texture2D Input { get; set; }
+
+        // GraphicsDevice and SpriteBatch for drawing
+        protected GraphicsDevice graphicsDevice;
+        protected static SpriteBatch spriteBatch;
+
+        public PostProcessor(Effect Effect, GraphicsDevice graphicsDevice)
+        {
+            this.Effect = Effect;
+
+            if (spriteBatch == null)
+                spriteBatch = new SpriteBatch(graphicsDevice);
+
+            this.graphicsDevice = graphicsDevice;
+        }
+
+        // Draws the input texture using the pixel shader postprocessor
+        public virtual void Draw()
+        {
+            // Set effect parameters if necessary
+            if (Effect.Parameters["ScreenWidth"] != null)
+                Effect.Parameters["ScreenWidth"].SetValue(
+                    graphicsDevice.Viewport.Width);
+
+            if (Effect.Parameters["ScreenHeight"] != null)
+                Effect.Parameters["ScreenHeight"].SetValue(
+                    graphicsDevice.Viewport.Height);
+
+            // Initialize the spritebatch and effect
+            spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
+            Effect.CurrentTechnique.Passes[0].Apply();
+
+            // For reach compatibility
+            graphicsDevice.SamplerStates[0] = SamplerState.AnisotropicClamp;
+
+            // Draw the input texture
+            spriteBatch.Draw(Input, Vector2.Zero, Color.White);
+
+            // End the spritebatch and effect
+            spriteBatch.End();
+
+            // Clean up render states changed by the spritebatch
+            graphicsDevice.DepthStencilState = DepthStencilState.Default;
+            graphicsDevice.BlendState = BlendState.Opaque;
+        }
+    }
+
+    public class GaussianBlur : PostProcessor
+    {
+        float blurAmount;
+
+        float[] weightsH, weightsV;
+        Vector2[] offsetsH, offsetsV;
+
+        RenderCapture capture;
+
+        public GaussianBlur(GraphicsDevice graphicsDevice, ContentManager Content,
+            float BlurAmount)
+            : base(Content.Load<Effect>("GaussianBlur"), graphicsDevice)
+        {
+            this.blurAmount = BlurAmount;
+
+            // Calculate weights/offsets for horizontal pass
+            calcSettings(1.0f / (float)graphicsDevice.Viewport.Width, 0,
+                out weightsH, out offsetsH);
+
+            // Calculate weights/offsets for vertical pass
+            calcSettings(0, 1.0f / (float)graphicsDevice.Viewport.Height,
+                out weightsV, out offsetsV);
+
+            capture = new RenderCapture(graphicsDevice);
+        }
+
+        void calcSettings(float w, float h,
+            out float[] weights, out Vector2[] offsets)
+        {
+            // 15 Samples
+            weights = new float[15];
+            offsets = new Vector2[15];
+
+            // Calulate values for center pixel
+            weights[0] = gaussianFn(0);
+            offsets[0] = new Vector2(0, 0);
+
+            float total = weights[0];
+
+            // Calculate samples in pairs
+            for (int i = 0; i < 7; i++)
+            {
+                // Weight each pair of samples according to Gaussian function
+                float weight = gaussianFn(i + 1);
+                weights[i * 2 + 1] = weight;
+                weights[i * 2 + 2] = weight;
+                total += weight * 2;
+
+                // Samples are offset by 1.5 pixels, to make use of
+                // filtering halfway between pixels
+                float offset = i * 2 + 1.5f;
+                Vector2 offsetVec = new Vector2(w, h) * offset;
+                offsets[i * 2 + 1] = offsetVec;
+                offsets[i * 2 + 2] = -offsetVec;
+            }
+
+            // Divide all weights by total so they will add up to 1
+            for (int i = 0; i < weights.Length; i++)
+                weights[i] /= total;
+        }
+
+        float gaussianFn(float x)
+        {
+            return (float)((1.0f / Math.Sqrt(2 * Math.PI * blurAmount * blurAmount)) *
+                Math.Exp(-(x * x) / (2 * blurAmount * blurAmount)));
+        }
+
+        public override void Draw()
+        {
+            // Set values for horizontal pass
+            Effect.Parameters["Offsets"].SetValue(offsetsH);
+            Effect.Parameters["Weights"].SetValue(weightsH);
+
+            // Render this pass into the RenderCapture
+            capture.Begin();
+            base.Draw();
+            capture.End();
+
+            // Get the results of the first pass
+            Input = capture.GetTexture();
+
+            // Set values for the vertical pass
+            Effect.Parameters["Offsets"].SetValue(offsetsV);
+            Effect.Parameters["Weights"].SetValue(weightsV);
+
+            // Render the final pass
+            base.Draw();
+        }
+    }
+
+    public class CModel
+    {
+        public Vector3 Position { get; set; }
+        public Vector3 Rotation { get; set; }
+        public Vector3 Scale { get; set; }
+
+        public Model Model { get; private set; }
+
+        private Matrix[] modelTransforms;
+        private GraphicsDevice graphicsDevice;
+        private BoundingSphere boundingSphere;
+
+        public BoundingSphere BoundingSphere
+        {
+            get
+            {
+                // No need for rotation, as this is a sphere
+                Matrix worldTransform = Matrix.CreateScale(Scale)
+                    * Matrix.CreateTranslation(Position);
+
+                BoundingSphere transformed = boundingSphere;
+                transformed = transformed.Transform(worldTransform);
+
+                return transformed;
+            }
+        }
+
+        public CModel(Model Model, Vector3 Position, Vector3 Rotation,
+            Vector3 Scale, GraphicsDevice graphicsDevice)
+        {
+            this.Model = Model;
+
+            modelTransforms = new Matrix[Model.Bones.Count];
+            Model.CopyAbsoluteBoneTransformsTo(modelTransforms);
+
+            buildBoundingSphere();
+            generateTags();
+
+            this.Position = Position;
+            this.Rotation = Rotation;
+            this.Scale = Scale;
+
+            this.graphicsDevice = graphicsDevice;
+        }
+
+        private void buildBoundingSphere()
+        {
+            BoundingSphere sphere = new BoundingSphere(Vector3.Zero, 0);
+
+            // Merge all the model's built in bounding spheres
+            foreach (ModelMesh mesh in Model.Meshes)
+            {
+                BoundingSphere transformed = mesh.BoundingSphere.Transform(
+                    modelTransforms[mesh.ParentBone.Index]);
+
+                sphere = BoundingSphere.CreateMerged(sphere, transformed);
+            }
+
+            this.boundingSphere = sphere;
+        }
+
+        public void Draw(Matrix View, Matrix Projection, Vector3 CameraPosition) { Draw(View, Projection, CameraPosition, null); }
+        public void Draw(Matrix View, Matrix Projection, Vector3 CameraPosition, Matrix? _baseWorld)
+        {
+            // Calculate the base transformation by combining
+            // translation, rotation, and scaling
+            Matrix baseWorld = _baseWorld != null ? _baseWorld.Value : (Matrix.CreateScale(Scale)
+                * Matrix.CreateFromYawPitchRoll(
+                    Rotation.Y, Rotation.X, Rotation.Z)
+                * Matrix.CreateTranslation(Position));
+
+            foreach (ModelMesh mesh in Model.Meshes)
+            {
+                Matrix localWorld = modelTransforms[mesh.ParentBone.Index]
+                    * baseWorld;
+
+                foreach (ModelMeshPart meshPart in mesh.MeshParts)
+                {
+                    Effect effect = meshPart.Effect;
+
+                    if (effect is BasicEffect)
+                    {
+                        ((BasicEffect)effect).World = localWorld;
+                        ((BasicEffect)effect).View = View;
+                        ((BasicEffect)effect).Projection = Projection;
+                        ((BasicEffect)effect).EnableDefaultLighting();
+                    }
+                    else
+                    {
+                        setEffectParameter(effect, "World", localWorld);
+                        setEffectParameter(effect, "View", View);
+                        setEffectParameter(effect, "Projection", Projection);
+                        setEffectParameter(effect, "CameraPosition", CameraPosition);
+                    }
+
+                    ((MeshTag)meshPart.Tag).Material.SetEffectParameters(effect);
+                }
+
+                mesh.Draw();
+            }
+        }
+
+        // Sets the specified effect parameter to the given effect, if it
+        // has that parameter
+        void setEffectParameter(Effect effect, string paramName, object val)
+        {
+            if (effect.Parameters[paramName] == null)
+                return;
+
+            if (val is Vector3)
+                effect.Parameters[paramName].SetValue((Vector3)val);
+            else if (val is bool)
+                effect.Parameters[paramName].SetValue((bool)val);
+            else if (val is Matrix)
+                effect.Parameters[paramName].SetValue((Matrix)val);
+            else if (val is Texture2D)
+                effect.Parameters[paramName].SetValue((Texture2D)val);
+        }
+
+        public void SetModelEffect(Effect effect, bool CopyEffect)
+        {
+            foreach (ModelMesh mesh in Model.Meshes)
+                SetMeshEffect(mesh.Name, effect, CopyEffect);
+        }
+
+        public void SetModelMaterial(Material material)
+        {
+            foreach (ModelMesh mesh in Model.Meshes)
+                SetMeshMaterial(mesh.Name, material);
+        }
+
+        public void SetMeshEffect(string MeshName, Effect effect, bool CopyEffect)
+        {
+            foreach (ModelMesh mesh in Model.Meshes)
+            {
+                if (mesh.Name != MeshName)
+                    continue;
+
+                foreach (ModelMeshPart part in mesh.MeshParts)
+                {
+                    Effect toSet = effect;
+
+                    // Copy the effect if necessary
+                    if (CopyEffect)
+                        toSet = effect.Clone();
+
+                    MeshTag tag = ((MeshTag)part.Tag);
+
+                    // If this ModelMeshPart has a texture, set it to the effect
+                    if (tag.Texture != null)
+                    {
+                        setEffectParameter(toSet, "BasicTexture", tag.Texture);
+                        setEffectParameter(toSet, "TextureEnabled", true);
+                    }
+                    else
+                        setEffectParameter(toSet, "TextureEnabled", false);
+
+                    // Set our remaining parameters to the effect
+                    setEffectParameter(toSet, "DiffuseColor", tag.Color);
+                    setEffectParameter(toSet, "SpecularPower", tag.SpecularPower);
+
+                    part.Effect = toSet;
+                }
+            }
+        }
+
+        public void SetMeshMaterial(string MeshName, Material material)
+        {
+            foreach (ModelMesh mesh in Model.Meshes)
+            {
+                if (mesh.Name != MeshName)
+                    continue;
+
+                foreach (ModelMeshPart meshPart in mesh.MeshParts)
+                    ((MeshTag)meshPart.Tag).Material = material;
+            }
+        }
+
+        private void generateTags()
+        {
+            foreach (ModelMesh mesh in Model.Meshes)
+                foreach (ModelMeshPart part in mesh.MeshParts)
+                    if (part.Effect is BasicEffect)
+                    {
+                        BasicEffect effect = (BasicEffect)part.Effect;
+                        MeshTag tag = new MeshTag(effect.DiffuseColor,
+                            effect.Texture, effect.SpecularPower);
+                        part.Tag = tag;
+                    }
+        }
+
+        // Store references to all of the model's current effects
+        public void CacheEffects()
+        {
+            foreach (ModelMesh mesh in Model.Meshes)
+                foreach (ModelMeshPart part in mesh.MeshParts)
+                    ((MeshTag)part.Tag).CachedEffect = part.Effect;
+        }
+
+        // Restore the effects referenced by the model's cache
+        public void RestoreEffects()
+        {
+            foreach (ModelMesh mesh in Model.Meshes)
+                foreach (ModelMeshPart part in mesh.MeshParts)
+                    if (((MeshTag)part.Tag).CachedEffect != null)
+                        part.Effect = ((MeshTag)part.Tag).CachedEffect;
+        }
+    }
+
+    public class MeshTag
+    {
+        public Vector3 Color;
+        public Texture2D Texture;
+        public float SpecularPower;
+        public Effect CachedEffect = null;
+        public Material Material = new Material();
+
+        public MeshTag(Vector3 Color, Texture2D Texture, float SpecularPower)
+        {
+            this.Color = Color;
+            this.Texture = Texture;
+            this.SpecularPower = SpecularPower;
+        }
+    }
+
+    public class Material
+    {
+        public virtual void SetEffectParameters(Effect effect)
+        {
+        }
+    }
+
+    public class LightingMaterial : Material
+    {
+        public Vector3 AmbientColor { get; set; }
+        public Vector3 LightDirection { get; set; }
+        public Vector3 LightColor { get; set; }
+        public Vector3 SpecularColor { get; set; }
+
+        public LightingMaterial()
+        {
+            AmbientColor = new Vector3(.1f, .1f, .1f);
+            LightDirection = new Vector3(1, 1, 1);
+            LightColor = new Vector3(.9f, .9f, .9f);
+            SpecularColor = new Vector3(1, 1, 1);
+        }
+
+        public override void SetEffectParameters(Effect effect)
+        {
+            if (effect.Parameters["AmbientColor"] != null)
+                effect.Parameters["AmbientColor"].SetValue(AmbientColor);
+
+            if (effect.Parameters["LightDirection"] != null)
+                effect.Parameters["LightDirection"].SetValue(LightDirection);
+
+            if (effect.Parameters["LightColor"] != null)
+                effect.Parameters["LightColor"].SetValue(LightColor);
+
+            if (effect.Parameters["SpecularColor"] != null)
+                effect.Parameters["SpecularColor"].SetValue(SpecularColor);
+        }
+    }
+
+    public class NormalMapMaterial : LightingMaterial
+    {
+        public Texture2D NormalMap { get; set; }
+
+        public NormalMapMaterial(Texture2D NormalMap)
+        {
+            this.NormalMap = NormalMap;
+        }
+
+        public override void SetEffectParameters(Effect effect)
+        {
+            base.SetEffectParameters(effect);
+
+            if (effect.Parameters["NormalMap"] != null)
+                effect.Parameters["NormalMap"].SetValue(NormalMap);
+        }
     }
 }
