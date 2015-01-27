@@ -30,11 +30,11 @@ namespace ParticleEngine
         {
             settings.TextureName = "Textures/explosion";
 
-            settings.MaxParticles = 1000;
+            settings.MaxParticles = 500;
 
             //settings.Scale = 0.1f;
 
-            settings.Duration = TimeSpan.FromSeconds(2);
+            settings.Duration = TimeSpan.FromSeconds(1);
             settings.DurationRandomness = 1;
 
             settings.MinHorizontalVelocity = 20;
@@ -51,11 +51,11 @@ namespace ParticleEngine
             settings.MinRotateSpeed = -1;
             settings.MaxRotateSpeed = 1;
 
-            settings.MinStartSize = 1;
-            settings.MaxStartSize = 1;
+            //settings.MinStartSize = 1;
+            //settings.MaxStartSize = 1;
 
-            settings.MinEndSize = 10;
-            settings.MaxEndSize = 14;
+            //settings.MinEndSize = 10;
+            //settings.MaxEndSize = 14;
 
             // Use additive blending.
             settings.BlendState = BlendState.Additive;

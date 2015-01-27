@@ -52,7 +52,7 @@ namespace SpaceSim
         //StarfieldComponent starfieldComponent;
         //Starfield starfield;
 
-        Model modelShip, modelEarth, modelAsteroid, modelLaser;
+        Model modelShip, modelEarth, modelAsteroid, modelLaser, modelMoon, modelShipAI, modelProbe, modelMisc, modelStation1, modelClaw, modelAsteroid2, modelBuckRogers, modelSatellite1, modelCygnus, modelBarracuda;
 
         public List<SpaceEntity> EntityCollection = new List<SpaceEntity>();
 
@@ -95,7 +95,24 @@ namespace SpaceSim
             projectileTrailParticles = new ProjectileTrailParticleSystem(this, Content);
             smokePlumeParticles = new SmokePlumeParticleSystem(this, Content);
             fireParticles = new FireParticleSystem(this, Content);
-            customParticleSystem = new CustomParticleSystem(this, Content);
+            
+            explosionSmallParticleSystem = new CustomParticleSystem(this, Content);
+            explosionSmallParticleSystem.settings.MinStartSize = 1;
+            explosionSmallParticleSystem.settings.MaxStartSize = 1;
+            explosionSmallParticleSystem.settings.MinEndSize = 10;
+            explosionSmallParticleSystem.settings.MaxEndSize = 14;
+
+            explosionMediumParticleSystem = new CustomParticleSystem(this, Content);
+            explosionMediumParticleSystem.settings.MinStartSize = 10;
+            explosionMediumParticleSystem.settings.MaxStartSize = 10;
+            explosionMediumParticleSystem.settings.MinEndSize = 100;
+            explosionMediumParticleSystem.settings.MaxEndSize = 140;
+
+            explosionLargeParticleSystem = new CustomParticleSystem(this, Content);
+            explosionLargeParticleSystem.settings.MinStartSize = 30;
+            explosionLargeParticleSystem.settings.MaxStartSize = 30;
+            explosionLargeParticleSystem.settings.MinEndSize = 300;
+            explosionLargeParticleSystem.settings.MaxEndSize = 420;
 
             // Set the draw order so the explosions and fire
             // will appear over the top of the smoke.
@@ -104,7 +121,10 @@ namespace SpaceSim
             projectileTrailParticles.DrawOrder = 300;
             explosionParticles.DrawOrder = 400;
             fireParticles.DrawOrder = 500;
-            customParticleSystem.DrawOrder = 600;
+            
+            explosionSmallParticleSystem.DrawOrder = 600;
+            explosionMediumParticleSystem.DrawOrder = 600;
+            explosionLargeParticleSystem.DrawOrder = 600;
 
             // Register the particle system components.
             Components.Add(explosionParticles);
@@ -112,7 +132,9 @@ namespace SpaceSim
             Components.Add(projectileTrailParticles);
             Components.Add(smokePlumeParticles);
             Components.Add(fireParticles);
-            Components.Add(customParticleSystem);
+            Components.Add(explosionSmallParticleSystem);
+            Components.Add(explosionMediumParticleSystem);
+            Components.Add(explosionLargeParticleSystem);
 
             //starfield = new Starfield(this, 1000);
             //Components.Add(starfield);
@@ -348,7 +370,7 @@ namespace SpaceSim
             camera.Reset();
         }
 
-        public static Entity entityShip, entityEarth, entityAsteroid;
+        public static Entity entityShip, entityEarth, entityAsteroid; //, entityAI, entityProbe;
 
         public static Effect effectBlur;
 
@@ -369,6 +391,19 @@ namespace SpaceSim
             modelEarth = Content.Load<Model>("Models/earth");
             modelAsteroid = Content.Load<Model>("Models/asteroid");
             modelLaser = Content.Load<Model>("Models/Laser");
+            modelMoon = Content.Load<Model>("Models/moon");
+            modelShipAI = Content.Load<Model>("Models/Shuttle");
+            modelProbe = Content.Load<Model>("Models/probe");
+
+            modelStation1 = Content.Load<Model>("Models/station1");
+            modelClaw = Content.Load<Model>("Models/claw");
+            modelAsteroid2 = Content.Load<Model>("Models/asteroid2");
+            modelBuckRogers = Content.Load<Model>("Models/buckrogers");
+            modelSatellite1 = Content.Load<Model>("Models/satellite1");
+            modelCygnus = Content.Load<Model>("Models/cygnus");
+            modelBarracuda = Content.Load<Model>("Models/barracuda");
+
+            //modelMisc = Content.Load<Model>("Models/barracuda");
 
             spriteFont = Content.Load<SpriteFont>("Fonts/Font1");
 
@@ -385,19 +420,108 @@ namespace SpaceSim
             //Box ground = new Box(BEPUutilities.Vector3.Zero, 30, 1, 30);
             //space.Add(ground);
 
-            entityShip = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 250), 1, 100), modelShip, .001f, GameModelType.Ship, 0, 0, typeof(EntityModel));
+            entityShip = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 350), 1, 100), modelShip, .001f, GameModelType.Ship, 0, 0, typeof(EntityModel));
             entityShip.AngularDamping = 0.9f;
             //entityShip.LinearDamping = 0.9f;
             entityShip.LinearDamping = 0.0f;
             entityShip.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
+            ShipSpeedIndex = ShipSpeedIndexZero;
 
-            entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -200), 205), modelEarth, 50f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
+            entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -200), 225), modelEarth, 50f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
             entityEarth.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
+            entityEarth.AngularVelocity = MathConverter.Convert(new Vector3(0.005f, 0.001f, 0.001f));
+            entityEarth.AngularDamping = 0f;
+
+            Entity moon = AddEntity(space, new Sphere(new BEPUutilities.Vector3(-550, 100, -350), 20), modelMoon, 0.1f, GameModelType.Planet, 0, 0, typeof(EntityModel));
+            moon.AngularVelocity = MathConverter.Convert(new Vector3(0.05f, 0.05f, 0));
+            moon.AngularDamping = 0f;
+
+            //entityAI = AddEntity(space, new Box(new BEPUutilities.Vector3(0, 10, 200), 6, 6, 6, 2000), modelShipAI, 0.3f, GameModelType.Ship, 0, 0, typeof(EntityModel));
+
+            BEPUutilities.Vector3[] vertices;
+            int[] indices;
+            ConsoleWindow.Log("start model extractor");
+            ConsoleWindow.TimerStart();
+            ModelDataExtractor.GetVerticesAndIndicesFromModel(modelShipAI, out vertices, out indices);
+            
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                vertices[i] = vertices[i] * 0.5f;
+            }
+            //BoundingBox b = UpdateBoundingBox(modelShipAI, Matrix.CreateWorld(Vector3.Zero, Vector3.Forward, Vector3.Up));
+            //modelShipAI.R
+            ConvexHull hull = new ConvexHull(vertices, 100);
+            ConsoleWindow.Log("stop model extractor: " + ConsoleWindow.TimerStop().TotalSeconds);
+            //entityAI = AddEntity(space, hull, modelShipAI, 0.5f, GameModelType.Ship, 0, 0, typeof(EntityModel));
+            //entityAI.Position = new BEPUutilities.Vector3(0, 10, 300);
+            
+            //entityAI.WorldTransform 
+            // graphic.LocalTransform = Matrix.CreateTranslation(-hull.Position);
+
+            //entityProbe = AddEntity(space, new Sphere(new BEPUutilities.Vector3(1000, 1000, 1000), 1, 2000), modelProbe, 0.2f, GameModelType.Ship, 0, 0, typeof(EntityModel));
+
+            if (modelMisc != null)
+            {
+                //BoundingBox b = CalculateBoundingBox(modelMisc);
+
+                Vector3 modelMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+                Vector3 modelMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+                ModelDataExtractor.GetVerticesAndIndicesFromModel(modelMisc, out vertices, out indices);
+                for (int i = 0; i < vertices.Length; i++)
+                {
+                    modelMin = Vector3.Min(modelMin, MathConverter.Convert(vertices[i]));
+                    modelMax = Vector3.Max(modelMax, MathConverter.Convert(vertices[i]));
+                }
+                BoundingBox b = new BoundingBox(modelMin, modelMax);
+                BoundingSphere bs = new BoundingSphere();
+                foreach (ModelMesh mesh in modelMisc.Meshes)
+                    bs = BoundingSphere.CreateMerged(bs, mesh.BoundingSphere);
+                
+                    //bounds = BoundingSphere.CreateMerged(bounds, mesh.BoundingSphere);
+                //b = UpdateBoundingBox(modelMisc, Matrix.CreateWorld(Vector3.Zero, Vector3.Forward, Vector3.Up));
+
+                //Scales
+                //station1 - 0.1f
+                //claw - 0.05f;
+                //asteroid2 - 0.01f;
+                //buckrogers - 0.05f;
+                //satellite1 - 0.05;
+                //cygnus - 0.1f;
+                //barracuda - 0.3f; // min value for convexhull
+
+                
+                float scale = 0.1f;
+                float width = Math.Abs(b.Min.X - b.Max.X) * scale;
+                float height = Math.Abs(b.Min.Y - b.Max.Y) * scale;
+                float length = Math.Abs(b.Min.Z - b.Max.Z) * scale;
+                //float width = bs.Radius * 2.0f * scale;
+                //float height = bs.Radius * 2.0f * scale;
+                //float length = bs.Radius * 2.0f * scale;
+                //float width = 2.5f * scale;
+                //float height = 2.9f * scale;
+                //float length = 2.5f * scale;
+                //AddEntity(space, new Box(new BEPUutilities.Vector3(0, 10, 250), width, height, length), modelMisc, scale, GameModelType.Ship, 0, 0, typeof(EntityModel));
+            }
+            if (modelMisc != null)
+            {
+                //BEPUutilities.Vector3[] vertices;
+                //int[] indices;
+
+                ModelDataExtractor.GetVerticesAndIndicesFromModel(modelMisc, out vertices, out indices);
+                for (int i = 0; i < vertices.Length; i++)
+                {
+                    vertices[i] = vertices[i] * 0.3f;
+                }
+                Entity e = AddEntity(space, new ConvexHull(vertices, 100), modelMisc, 0.3f, GameModelType.Ship, 0, 0, typeof(EntityModel));
+                e.Position = MathConverter.Convert(new Vector3(0, 10, 250));
+            }
+
+            //new ConvexHull(
+            //DisplayEntityModel
+            
 
             GenerateAsteroids();
-            //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
-            //AddEntity(space, new Sphere(new BEPUutilities.Vector3(-10, 0, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
-            //AddEntity(space, new Sphere(new BEPUutilities.Vector3(10, 0, 210), 2, 1000), modelAsteroid, 10f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
+            GenerateNPCs();
 
             space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
 
@@ -436,29 +560,167 @@ namespace SpaceSim
             */
         }
 
+        public BoundingBox CalculateBoundingBox(Model model)
+        {
+            Matrix[] boneTransforms = new Matrix[model.Bones.Count];
+            model.CopyAbsoluteBoneTransformsTo(boneTransforms);
+
+            // Create variables to hold min and max xyz values for the model. Initialise them to extremes
+            Vector3 modelMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+            Vector3 modelMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+
+            foreach (ModelMesh mesh in model.Meshes)
+            {
+                //Create variables to hold min and max xyz values for the mesh. Initialise them to extremes
+                Vector3 meshMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+                Vector3 meshMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+
+                // There may be multiple parts in a mesh (different materials etc.) so loop through each
+                foreach (ModelMeshPart part in mesh.MeshParts)
+                {
+                    // The stride is how big, in bytes, one vertex is in the vertex buffer
+                    // We have to use this as we do not know the make up of the vertex
+                    int stride = part.VertexBuffer.VertexDeclaration.VertexStride;
+
+                    byte[] vertexData = new byte[stride * part.NumVertices];
+                    part.VertexBuffer.GetData(part.VertexOffset * stride, vertexData, 0, part.NumVertices, 1); // fixed 13/4/11
+
+                    // Find minimum and maximum xyz values for this mesh part
+                    // We know the position will always be the first 3 float values of the vertex data
+                    Vector3 vertPosition = new Vector3();
+                    for (int ndx = 0; ndx < vertexData.Length; ndx += stride)
+                    {
+                        vertPosition.X = BitConverter.ToSingle(vertexData, ndx);
+                        vertPosition.Y = BitConverter.ToSingle(vertexData, ndx + sizeof(float));
+                        vertPosition.Z = BitConverter.ToSingle(vertexData, ndx + sizeof(float) * 2);
+
+                        // update our running values from this vertex
+                        meshMin = Vector3.Min(meshMin, vertPosition);
+                        meshMax = Vector3.Max(meshMax, vertPosition);
+                    }
+                }
+
+                // transform by mesh bone transforms
+                meshMin = Vector3.Transform(meshMin, boneTransforms[mesh.ParentBone.Index]);
+                meshMax = Vector3.Transform(meshMax, boneTransforms[mesh.ParentBone.Index]);
+
+                // Expand model extents by the ones from this mesh
+                modelMin = Vector3.Min(modelMin, meshMin);
+                modelMax = Vector3.Max(modelMax, meshMax);
+            }
+
+
+            // Create and return the model bounding box
+            return new BoundingBox(modelMin, modelMax);
+
+        }
+
+        private List<Entity> AIEntities = new List<Entity>();
+
+        private Random rand = new Random();
+        //private Vector3? aiTargetPos = null;
+        private void UpdateAI(GameTime gameTime)
+        {
+            foreach (Entity aiEntity in AIEntities)
+            {
+                EntityModel aiEntityModel = (EntityModel)aiEntity.Tag;
+                if (aiEntityModel.AITargetPos == null)
+                {
+                    aiEntityModel.AITargetPos = GetRandomNonCollidingPoint(Max(aiEntityModel.Size.X, aiEntityModel.Size.Y, aiEntityModel.Size.Z), Vector3.Zero, 400, 10, rand);
+                }
+
+                float targetPosReachedMinDist = 30f;
+                if (aiEntityModel.AITargetPos != null)
+                {
+                    //entityProbe.Position = MathConverter.Convert(aiTargetPos.Value);
+
+                    float distToTargetPos = Vector3.Distance(aiEntityModel.AITargetPos.Value, MathConverter.Convert(aiEntity.Position));
+                    if (distToTargetPos >= targetPosReachedMinDist)
+                    {
+                        BEPUutilities.Quaternion q;
+
+                        BEPUutilities.Vector3 currentDirection = aiEntity.OrientationMatrix.Forward;
+                        BEPUutilities.Vector3 currentPosition = aiEntity.Position;
+                        BEPUutilities.Vector3 positionToFace = MathConverter.Convert(aiEntityModel.AITargetPos.Value);
+                        BEPUutilities.Vector3 difference = BEPUutilities.Vector3.Normalize(positionToFace - currentPosition);
+                        BEPUutilities.Quaternion rot;
+                        BEPUutilities.Quaternion.GetQuaternionBetweenNormalizedVectors(ref currentDirection, ref difference, out rot);
+                        aiEntity.AngularVelocity = EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(aiEntity.WorldTransform.Forward, 0), rot, 3.0f);
+                        aiEntity.LinearVelocity = aiEntity.WorldTransform.Forward * 15;
+                    }
+                    else
+                    {
+                        // Target pos reached
+                        aiEntityModel.AITargetPos = null;
+                    }
+                }
+            }
+        }
+
+        public static float Max(params float[] values)
+        {
+            float maxValue = 0f;
+            foreach (float val in values)
+            {
+                maxValue = Math.Max(val, maxValue);
+            }
+            return maxValue;
+        }
+
+        public Vector3? GetRandomNonCollidingPoint(float requestedPlacementRadius, Vector3 targetAreaCenter, int targetAreaRadius, int maxPlacementAttempts, Random r)
+        {
+            IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
+            for (int j = 0; j < maxPlacementAttempts; j++)
+            {
+                BEPUutilities.Vector3 pos = new BEPUutilities.Vector3(targetAreaCenter.X + r.Next(-targetAreaRadius / 2, targetAreaRadius / 2), r.Next(-targetAreaRadius / 2, targetAreaRadius / 2), r.Next(-targetAreaRadius / 2, targetAreaRadius / 2));
+                space.BroadPhase.QueryAccelerator.GetEntries(new BEPUutilities.BoundingBox(new BEPUutilities.Vector3(pos.X - requestedPlacementRadius, pos.Y - requestedPlacementRadius, pos.Z - requestedPlacementRadius), new BEPUutilities.Vector3(pos.X + requestedPlacementRadius, pos.Y + requestedPlacementRadius, pos.Z + requestedPlacementRadius)), overlaps);
+                if (overlaps.Count == 0) return MathConverter.Convert(pos);
+            }
+            return null;
+        }
+
+        private void GenerateNPCs()
+        {
+            List<NPCData> npcTypes = new List<NPCData>();
+            //npcTypes.Add(new NPCData() { model = modelClaw, scale = 0.05f });
+            npcTypes.Add(new NPCData() { model = modelBuckRogers, scale = 0.05f });
+            //npcTypes.Add(new NPCData() { model = modelCygnus, scale = 0.1f });
+            //npcTypes.Add(new NPCData() { model = modelBarracuda, scale = 0.3f });
+
+            Random r = new Random();
+            int maxNPCs = 100, npcTypeIndex = 0, maxRange = 2000;
+            for (int i = 0; i < maxNPCs; i++)
+            {
+                NPCData npcData = npcTypes[npcTypeIndex++];
+                if (npcTypeIndex == npcTypes.Count) npcTypeIndex = 0;
+
+                Vector3 modelSize = GetModelSize(npcData.model, npcData.scale);
+                Vector3? pos = GetRandomNonCollidingPoint(Max(modelSize.X,modelSize.Y,modelSize.Z), Vector3.Zero, maxRange, 10, r);
+                if (pos != null)
+                {
+                    AddEntity(space, new Box(MathConverter.Convert(pos.Value), modelSize.X, modelSize.Y, modelSize.Z, 200), npcData.model, npcData.scale, GameModelType.ShipNPC, 0, 0, typeof(EntityModel));
+                }
+            }
+
+        }
+
         private void GenerateAsteroids()
         {
             ConsoleWindow.Log("Generating asteroids...");
             ConsoleWindow.TimerStart();
             IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
 
-            int maxAsteroids = 1000, maxRange = 2000, maxPlacementAttempts = 10, asteroidsCreated = 0;
+            int maxAsteroids = 1000, maxRange = 2000, asteroidsCreated = 0;
             float minRadius = 0.5f, maxRadius = 10f;
             Random r = new Random();
             for (int i = 0; i < maxAsteroids; i++)
             {
-                overlaps.Clear();
-                for (int j = 0; j < maxPlacementAttempts; j++)
+                float radius = ((float)r.NextDouble() * (maxRadius - minRadius)) + minRadius;
+                Vector3? pos = GetRandomNonCollidingPoint(radius, Vector3.Zero, maxRange, 10, r);
+                if (pos != null)
                 {
-                    BEPUutilities.Vector3 pos = new BEPUutilities.Vector3(r.Next(-maxRange / 2, maxRange / 2), r.Next(-maxRange / 2, maxRange / 2), r.Next(-maxRange / 2, maxRange / 2));
-                    float radius = ((float)r.NextDouble() * (maxRadius - minRadius)) + minRadius;
-                    space.BroadPhase.QueryAccelerator.GetEntries(new BEPUutilities.BoundingBox(new BEPUutilities.Vector3(pos.X - radius, pos.Y - radius, pos.Z - radius), new BEPUutilities.Vector3(pos.X + radius, pos.Y + radius, pos.Z + radius)), overlaps);
-                    if (overlaps.Count == 0)
-                    {
-                        AddEntity(space, new Sphere(pos, radius, 1000), modelAsteroid, radius * 5.0f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
-                        asteroidsCreated++;
-                        break;
-                    }
+                    AddEntity(space, new Sphere(MathConverter.Convert(pos.Value), radius, 1000), modelAsteroid, radius * 5.0f, GameModelType.Asteroid, 3, 3, typeof(EntityModel));
+                    asteroidsCreated++;
                 }
             }
             ConsoleWindow.Log(asteroidsCreated + " asteroids created in " + ConsoleWindow.TimerStop().TotalSeconds + " sec");
@@ -469,7 +731,7 @@ namespace SpaceSim
         ParticleSystem projectileTrailParticles;
         ParticleSystem smokePlumeParticles;
         ParticleSystem fireParticles;
-        ParticleSystem customParticleSystem;
+        ParticleSystem explosionSmallParticleSystem, explosionMediumParticleSystem, explosionLargeParticleSystem;
 
         void HandleCollision(EntityCollidable sender, Collidable other, CollidablePairHandler pair)
         {
@@ -491,7 +753,7 @@ namespace SpaceSim
                         //QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0);
                         //QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0.1f);
                         //QueueExplosion(GetRandomPosition(MathConverter.Convert(otherEntityInformation.Entity.Position), 10), 5, 0.2f);
-                        ShowExplosion(MathConverter.Convert(otherEntityInformation.Entity.Position), 5);
+                        ShowExplosion(MathConverter.Convert(otherEntityInformation.Entity.Position), ExplosionSize.Large);
 
                         //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 100, 1000), modelAsteroid, 500f, typeof(EntityModel));
                         //AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 1000, 21000), 100, 1000), modelAsteroid, 500f, typeof(EntityModel));
@@ -509,7 +771,7 @@ namespace SpaceSim
                             space.Remove(otherEntityInformation.Entity);
                             Components.Remove((EntityModel)otherEntityInformation.Entity.Tag);
 
-                            QueueExplosion(MathConverter.Convert(otherEntityInformation.Entity.Position), 5, 0);
+                            QueueExplosion(MathConverter.Convert(otherEntityInformation.Entity.Position), ExplosionSize.Medium, 0);
 
                             if (parent.MaxDestructionDivision > 0)
                             {
@@ -527,14 +789,16 @@ namespace SpaceSim
                 else if (sender.Entity.Tag is ProjectileModel)
                 {
                     ((ProjectileModel)sender.Entity.Tag).DestroyNow = true;
+                    if (otherEntityInformation.Entity == entityEarth) ShowExplosion(MathConverter.Convert(sender.Entity.Position), ExplosionSize.Large);
+                    else ShowExplosion(MathConverter.Convert(sender.Entity.Position), ExplosionSize.Small);
                 }
             }
         }
 
         private List<QueuedExplosion> QueuedExplosions = new List<QueuedExplosion>();
-        public void QueueExplosion(Vector3 position, int strength, float delaySeconds)
+        public void QueueExplosion(Vector3 position, ExplosionSize size, float delaySeconds)
         {
-            QueuedExplosions.Add(new QueuedExplosion() { Position = position, Strength = strength, DetonationTime = DateTime.Now.AddSeconds(delaySeconds) });
+            QueuedExplosions.Add(new QueuedExplosion() { Position = position, Size = size, DetonationTime = DateTime.Now.AddSeconds(delaySeconds) });
         }
         private void ProcessQueuedExplosions()
         {
@@ -543,21 +807,27 @@ namespace SpaceSim
                 QueuedExplosion explosion = QueuedExplosions[i];
                 if (DateTime.Now >= explosion.DetonationTime)
                 {
-                    ShowExplosion(explosion.Position, explosion.Strength);
+                    ShowExplosion(explosion.Position, explosion.Size);
                     QueuedExplosions.RemoveAt(i);
                 }
             }
         }
-        public void ShowExplosion(Vector3 position, int strength)
+        public void ShowExplosion(Vector3 position, ExplosionSize size)
         {
-            int numExplosionParticles = 10;
+            int numExplosionParticles = 5;
             int numExplosionSmokeParticles = 50;
             Random r = new Random();
+            ParticleSystem particleSystem = explosionSmallParticleSystem;
+            if (size == ExplosionSize.Medium) particleSystem = explosionMediumParticleSystem;
+            else if (size == ExplosionSize.Large) particleSystem = explosionLargeParticleSystem;
+
             for (int i = 0; i < numExplosionParticles; i++)
+            {
                 //explosionParticles.AddParticle(position, new Vector3(0.01f,0.01f,0.01f));
                 //explosionParticles.AddParticle(position, new Vector3(r.Next(-strength, strength), r.Next(-strength, strength), r.Next(-strength, strength)));
 
-                customParticleSystem.AddParticle(position, new Vector3(r.Next(-strength, strength), r.Next(-strength, strength), r.Next(-strength, strength)));
+                particleSystem.AddParticle(position, new Vector3(2, 2, 2));
+            }
 
             //for (int i = 0; i < numExplosionSmokeParticles; i++)
                 //explosionSmokeParticles.AddParticle(position, new Vector3(r.Next(-strength / 2, strength/2), r.Next(-strength / 2, strength / 2), r.Next(-strength / 2, strength / 2)));
@@ -573,13 +843,38 @@ namespace SpaceSim
             return AddEntity(space, entity, model, Matrix.CreateScale(scale, scale, scale), gameModelType, strength, destructionDivisions, entityType);
         }
 
+        private Vector3 GetModelSize(Model model, float scale)
+        {
+            BEPUutilities.Vector3[] vertices;
+            int[] indices;
+            Vector3 modelMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+            Vector3 modelMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            ModelDataExtractor.GetVerticesAndIndicesFromModel(model, out vertices, out indices);
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                modelMin = Vector3.Min(modelMin, MathConverter.Convert(vertices[i]));
+                modelMax = Vector3.Max(modelMax, MathConverter.Convert(vertices[i]));
+            }
+            BoundingBox b = new BoundingBox(modelMin, modelMax);
+
+            float width = Math.Abs(b.Min.X - b.Max.X) * scale;
+            float height = Math.Abs(b.Min.Y - b.Max.Y) * scale;
+            float length = Math.Abs(b.Min.Z - b.Max.Z) * scale;
+            return new Vector3(width, height, length);
+        }
+
         private Entity AddEntity(Space space, Entity entity, Model model, Matrix scale, GameModelType gameModelType, int strength, int destructionDivisions, Type entityType)
         {
             space.Add(entity);
             DrawableGameComponent entityModel = null;
             if (entityType == typeof(EntityModel))
             {
-                entityModel = new EntityModel(entity, model, MathConverter.Convert(scale), this);
+                if (entity is ConvexHull) entityModel = new EntityModel(entity, model, MathConverter.Convert(scale) * BEPUutilities.Matrix.CreateTranslation(-entity.Position), this);
+                else
+                {
+                    entityModel = new EntityModel(entity, model, MathConverter.Convert(scale), this);
+                }
+
                 ((EntityModel)entityModel).GameModelType = gameModelType;
                 ((EntityModel)entityModel).Scale = scale.M11;
                 ((EntityModel)entityModel).Strength = strength;
@@ -596,6 +891,7 @@ namespace SpaceSim
                     float zRotRnd = ((float)r.NextDouble() * (float)(r.Next(1, 3) == 1 ? 1 : -1));
                     entity.AngularVelocity = new BEPUutilities.Vector3(xRotRnd, yRotRnd, zRotRnd);
                 }
+                else if (gameModelType == GameModelType.ShipNPC) AIEntities.Add(entity);
             }
             else if (entityType == typeof(PlanetModel))
             {
@@ -605,7 +901,7 @@ namespace SpaceSim
             else if (entityType == typeof(ProjectileModel))
             {
                 //entityModel = new ProjectileModel(entity, model, MathConverter.Convert(Matrix.CreateScale(scale, scale, scale)), this, explosionParticles, explosionSmokeParticles, projectileTrailParticles);
-                entityModel = new ProjectileModel(entity, model, MathConverter.Convert(scale), this, explosionParticles, explosionSmokeParticles, customParticleSystem);
+                entityModel = new ProjectileModel(entity, model, MathConverter.Convert(scale), this, explosionParticles, explosionSmokeParticles, explosionSmallParticleSystem);
                 entity.Tag = entityModel;
                 entity.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
                 entity.Orientation = entityShip.Orientation;
@@ -615,7 +911,7 @@ namespace SpaceSim
             return entity;
         }
 
-        private float ShipSpeed = 0, ShipWeaponFireReloadDuration = 0.1f;
+        private float ShipWeaponFireReloadDuration = 0.1f;
         private DateTime ShipWeaponFired = DateTime.MinValue;
         private bool ShipWeaponAvailable { get { return (DateTime.Now - ShipWeaponFired).TotalSeconds >= ShipWeaponFireReloadDuration; } }
         List<Entity> projectiles = new List<Entity>();
@@ -654,6 +950,26 @@ namespace SpaceSim
         private Vector2 smoothedMouseMovement;
         private MouseState currentMouseState;
         private MouseState previousMouseState;
+
+        private int ShipSpeedIndex = 0;
+        private float[] ShipSpeeds = { -30, -15, 0, 5, 10, 25, 40, 60 };
+        private int ShipSpeedIndexZero { get { for (int i = 0; i < ShipSpeeds.Length; i++) { if (ShipSpeeds[i] == 0) return i; } return 0; } }
+        private float ShipSpeed { get { return ShipSpeeds[ShipSpeedIndex]; } }
+        private void ShipSpeedIncrease()
+        {
+            ShipSpeedIndex++;
+            if (ShipSpeedIndex >= ShipSpeeds.Length) ShipSpeedIndex = ShipSpeeds.Length-1;
+        }
+        private void ShipSpeedDecrease()
+        {
+            ShipSpeedIndex--;
+            if (ShipSpeedIndex < 0) ShipSpeedIndex = 0;
+        }
+        private void ShipSpeedZero()
+        {
+            ShipSpeedIndex = ShipSpeedIndexZero;
+        }
+
 
         /// <summary>
         /// Allows the game to run logic such as updating the world,
@@ -759,10 +1075,9 @@ namespace SpaceSim
                 float maxReverseSpeed = -50;
                 int speedIncrement = 2;
                 float mouseWheelDirection = GetMouseWheelDirection();
-                if (mouseWheelDirection > 0) ShipSpeed+=speedIncrement;
-                else if (mouseWheelDirection < 0) ShipSpeed -= speedIncrement;
-                else if (currentMouseState.MiddleButton == ButtonState.Pressed) ShipSpeed = 0;
-                ShipSpeed = Math.Max(maxReverseSpeed, Math.Min(ShipSpeed, maxForwardSpeed));
+                if (mouseWheelDirection > 0) ShipSpeedIncrease();
+                else if (mouseWheelDirection < 0) ShipSpeedDecrease();
+                else if (currentMouseState.MiddleButton == ButtonState.Pressed) ShipSpeedZero();
                 entityShip.LinearVelocity = entityShip.WorldTransform.Forward * ShipSpeed;
             }
             //ConsoleWindow.Log(dx + "," + dy);
@@ -801,6 +1116,7 @@ namespace SpaceSim
 
             UpdateProjectiles(gameTime);
             UpdateFrameRate(gameTime);
+            UpdateAI(gameTime);
             base.Update(gameTime);
         }
 
@@ -811,7 +1127,7 @@ namespace SpaceSim
         {
             int i = 0;
 
-            float maxDistanceToSelfDestruct = 200f;
+            float maxDistanceToSelfDestruct = 1000f;
             while (i < projectiles.Count)
             {
                 Entity projectile = projectiles[i];
@@ -822,7 +1138,7 @@ namespace SpaceSim
                     space.Remove(projectile);
                     Components.Remove(projectileModel);
                     projectiles.RemoveAt(i);
-                    ShowExplosion(MathConverter.Convert(projectile.Position), 1);
+                    if (!projectileModel.DestroyNow) ShowExplosion(MathConverter.Convert(projectile.Position), ExplosionSize.Small);
                 }
                 else
                 {
@@ -849,7 +1165,7 @@ namespace SpaceSim
             ++frames;
         }
 
-        Vector2 fpsFontPos = new Vector2(1.0f, 1.0f);
+        Vector2 infoFontPos = new Vector2(1.0f, 1.0f);
 
         /// <summary>
         /// This is called when the game should draw itself.
@@ -885,7 +1201,9 @@ namespace SpaceSim
             projectileTrailParticles.SetCamera(camera.View, camera.Projection);
             smokePlumeParticles.SetCamera(camera.View, camera.Projection);
             fireParticles.SetCamera(camera.View, camera.Projection);
-            customParticleSystem.SetCamera(camera.View, camera.Projection);
+            explosionSmallParticleSystem.SetCamera(camera.View, camera.Projection);
+            explosionMediumParticleSystem.SetCamera(camera.View, camera.Projection);
+            explosionLargeParticleSystem.SetCamera(camera.View, camera.Projection);
 
             // TODO: Add your drawing code here
             base.Draw(gameTime);
@@ -905,7 +1223,7 @@ namespace SpaceSim
 
             ///*
             spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-            spriteBatch.DrawString(spriteFont, "FPS: " + framesPerSecond, fpsFontPos, Color.Yellow);
+            spriteBatch.DrawString(spriteFont, "FPS: " + framesPerSecond + "\nShip Speed: " + ShipSpeed, infoFontPos, Color.Yellow);
             // */
             spriteBatch.End();
 
@@ -1033,7 +1351,7 @@ namespace SpaceSim
     {
         public DateTime DetonationTime;
         public Vector3 Position;
-        public int Strength;
+        public ExplosionSize Size;
     }
 
     public class RenderCapture
@@ -1486,5 +1804,18 @@ namespace SpaceSim
             if (effect.Parameters["NormalMap"] != null)
                 effect.Parameters["NormalMap"].SetValue(NormalMap);
         }
+    }
+
+    public enum ExplosionSize
+    {
+        Small,
+        Medium,
+        Large
+    }
+
+    public class NPCData
+    {
+        public Model model;
+        public float scale;
     }
 }

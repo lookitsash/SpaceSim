@@ -26,7 +26,9 @@ namespace SpaceSim
         public int Strength = 3;
         public int MaxDestructionDivision = 2;
         public float Scale = 0;
-
+        public Vector3? AITargetPos = null;
+        public Vector3 Size;
+        
         /// <summary>
         /// Entity that this model follows.
         /// </summary>
@@ -102,15 +104,21 @@ namespace SpaceSim
             
         }
 
+        public override void Update(GameTime gameTime)
+        {
+            base.Update(gameTime);
+        }
+
         public override void Draw(GameTime gameTime)
         {
             bool abortDraw = false;
 
-            if (GameModelType == SpaceSim.GameModelType.Asteroid)
+            if (GameModelType == SpaceSim.GameModelType.Asteroid || GameModelType == SpaceSim.GameModelType.ShipNPC)
             {
                 float distanceFromPlayer = BEPUutilities.Vector3.Distance(SpaceSimGame.entityShip.Position, entity.Position);
                 if (distanceFromPlayer >= 1000) abortDraw = true;
             }
+            //if (GameModelType == SpaceSim.GameModelType.ShipNPC) abortDraw = true;
 
             if (!abortDraw)
             {

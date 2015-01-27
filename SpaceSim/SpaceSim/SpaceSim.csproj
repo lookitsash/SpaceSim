@@ -142,6 +142,7 @@
     <Compile Include="Earth.cs" />
     <Compile Include="Entity.cs" />
     <Compile Include="EntityModel.cs" />
+    <Compile Include="ModelDataExtractor.cs" />
     <Compile Include="ParticleEngine\ParticleEmitter.cs" />
     <Compile Include="ParticleEngine\ParticleSettings.cs" />
     <Compile Include="ParticleEngine\ParticleSystem.cs" />

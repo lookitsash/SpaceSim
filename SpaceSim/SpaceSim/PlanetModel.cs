@@ -10,7 +10,8 @@ namespace SpaceSim
         Planet,
         Ship,
         Asteroid,
-        Projectile
+        Projectile,
+        ShipNPC
     }
 
     /// <summary>
