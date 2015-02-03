@@ -22,6 +22,8 @@ namespace SpaceSim
         }
         */
 
+        public int ID;
+
         public GameModelType GameModelType;
         public int Strength = 3;
         public int MaxDestructionDivision = 2;
@@ -109,18 +111,26 @@ namespace SpaceSim
             base.Update(gameTime);
         }
 
+        public bool ShouldRender
+        {
+            get
+            {
+                bool abortDraw = false;
+
+                if (GameModelType == SpaceSim.GameModelType.Asteroid || GameModelType == SpaceSim.GameModelType.ShipNPC)
+                {
+                    float distanceFromPlayer = BEPUutilities.Vector3.Distance(SpaceSimGame.entityShip.Position, entity.Position);
+                    if (distanceFromPlayer >= 1000) abortDraw = true;
+                }
+                else if (GameModelType == SpaceSim.GameModelType.Ship) abortDraw = true;
+
+                return !abortDraw;
+            }
+        }
+
         public override void Draw(GameTime gameTime)
         {
-            bool abortDraw = false;
-
-            if (GameModelType == SpaceSim.GameModelType.Asteroid || GameModelType == SpaceSim.GameModelType.ShipNPC)
-            {
-                float distanceFromPlayer = BEPUutilities.Vector3.Distance(SpaceSimGame.entityShip.Position, entity.Position);
-                if (distanceFromPlayer >= 1000) abortDraw = true;
-            }
-            //if (GameModelType == SpaceSim.GameModelType.ShipNPC) abortDraw = true;
-
-            if (!abortDraw)
+            if (ShouldRender)
             {
                 Matrix worldMatrix = MathConverter.Convert(Transform * entity.WorldTransform);
                 /*
@@ -152,8 +162,8 @@ namespace SpaceSim
                     foreach (BasicEffect effect in mesh.Effects)
                     {
                         effect.World = boneTransforms[mesh.ParentBone.Index] * worldMatrix;
-                        effect.View = SpaceSimGame.camera.View;
-                        effect.Projection = SpaceSimGame.camera.Projection;
+                        effect.View = ((SpaceSimGame)this.Game).camera.View;
+                        effect.Projection = ((SpaceSimGame)this.Game).camera.Projection;
                     }
                     mesh.Draw();
                 }

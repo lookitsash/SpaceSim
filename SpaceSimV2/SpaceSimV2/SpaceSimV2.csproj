@@ -1,25 +1,24 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <ProjectGuid>{F25C4BB3-CEF7-46F9-AD9F-513B4A0C99B1}</ProjectGuid>
+    <ProjectGuid>{1686B2B1-37B7-4416-9325-394B3A88657C}</ProjectGuid>
     <ProjectTypeGuids>{6D335F3A-9D43-41b4-9D22-F6F17C4BE596};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SpaceSim</RootNamespace>
-    <AssemblyName>SpaceSim</AssemblyName>
+    <RootNamespace>SpaceSimV2</RootNamespace>
+    <AssemblyName>SpaceSimV2</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>Client</TargetFrameworkProfile>
     <XnaFrameworkVersion>v4.0</XnaFrameworkVersion>
     <XnaPlatform>Windows</XnaPlatform>
     <XnaProfile>HiDef</XnaProfile>
-    <XnaCrossPlatformGroupID>20890c94-0d07-4fc2-88ad-b2fb1b663a0b</XnaCrossPlatformGroupID>
+    <XnaCrossPlatformGroupID>8373d6a9-4e30-4806-bcf1-67dd4b6f2247</XnaCrossPlatformGroupID>
     <XnaOutputType>Game</XnaOutputType>
     <ApplicationIcon>Game.ico</ApplicationIcon>
     <Thumbnail>GameThumbnail.png</Thumbnail>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
-    <PublishUrl>c:\deploy\SpaceSim\</PublishUrl>
+    <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
     <UpdateEnabled>false</UpdateEnabled>
@@ -29,10 +28,10 @@
     <UpdatePeriodically>false</UpdatePeriodically>
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>5</ApplicationRevision>
+    <ApplicationRevision>0</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
-    <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
@@ -61,31 +60,9 @@
     <XnaCompressContent>true</XnaCompressContent>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>5A0E7DC19B1B5808732D49A0AC1DD3ACFE6BE893</ManifestCertificateThumbprint>
-  </PropertyGroup>
-  <PropertyGroup>
-    <ManifestKeyFile>SpaceSim_TemporaryKey.pfx</ManifestKeyFile>
-  </PropertyGroup>
-  <PropertyGroup>
-    <GenerateManifests>true</GenerateManifests>
-  </PropertyGroup>
-  <PropertyGroup>
-    <SignManifests>true</SignManifests>
+    <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="BEPUik">
-      <HintPath>.\BEPUik.dll</HintPath>
-    </Reference>
-    <Reference Include="BEPUphysics">
-      <HintPath>.\BEPUphysics.dll</HintPath>
-    </Reference>
-    <Reference Include="BEPUutilities, Version=1.3.0.0, Culture=neutral, PublicKeyToken=31f6a8732a21de19, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>.\BEPUutilities.dll</HintPath>
-    </Reference>
-    <Reference Include="ConversionHelper">
-      <HintPath>.\ConversionHelper.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.Xna.Framework, Version=4.0.0.0, Culture=neutral, PublicKeyToken=842cf8be1de50553, processorArchitecture=x86">
       <Private>False</Private>
     </Reference>
@@ -119,8 +96,6 @@
     <Reference Include="System">
       <Private>False</Private>
     </Reference>
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml">
       <Private>False</Private>
     </Reference>
@@ -135,35 +110,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BloomComponent.cs" />
-    <Compile Include="BloomSettings.cs" />
-    <Compile Include="ChaseCamera.cs" />
-    <Compile Include="ConsoleWindow.cs" />
-    <Compile Include="CustomGraphicsDeviceManager.cs" />
-    <Compile Include="Earth.cs" />
-    <Compile Include="Entity.cs" />
-    <Compile Include="EntityModel.cs" />
-    <Compile Include="ModelDataExtractor.cs" />
-    <Compile Include="ParticleEngine\ParticleEmitter.cs" />
-    <Compile Include="ParticleEngine\ParticleSettings.cs" />
-    <Compile Include="ParticleEngine\ParticleSystem.cs" />
-    <Compile Include="ParticleEngine\ParticleVertex.cs" />
-    <Compile Include="ParticleEngine\Projectile.cs" />
-    <Compile Include="ParticleEngine\Systems\CustomParticleSystem.cs" />
-    <Compile Include="ParticleEngine\Systems\ExplosionParticleSystem.cs" />
-    <Compile Include="ParticleEngine\Systems\ExplosionSmokeParticleSystem.cs" />
-    <Compile Include="ParticleEngine\Systems\FireParticleSystem.cs" />
-    <Compile Include="ParticleEngine\Systems\ProjectileTrailParticleSystem.cs" />
-    <Compile Include="ParticleEngine\Systems\SmokePlumeParticleSystem.cs" />
-    <Compile Include="PlanetModel.cs" />
-    <Compile Include="ProjectileModel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Program.cs" />
-    <Compile Include="SecondaryGame.cs" />
-    <Compile Include="Skybox.cs" />
     <Compile Include="SpaceSimGame.cs" />
-    <Compile Include="Ship.cs" />
-    <Compile Include="TargetedGraphicsDeviceManager.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Game.ico" />
@@ -174,8 +123,9 @@
       <Project>{5F4B76D3-E1B0-43C3-91A8-E815C5E6B729}</Project>
       <Name>SpaceSimLibrary</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SpaceSimContent\SpaceSimContent.contentproj">
-      <Name>SpaceSimContent</Name>
+    <ProjectReference Include="..\..\SpaceSim\SpaceSimContent\SpaceSimContent.contentproj">
+      <Project>{1C199763-248D-414F-A400-3077DC867A91}</Project>
+      <Name>SpaceSimContent %28Content%29</Name>
       <XnaReferenceType>Content</XnaReferenceType>
     </ProjectReference>
   </ItemGroup>
@@ -205,9 +155,6 @@
       <ProductName>Microsoft XNA Framework Redistributable 4.0</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="SpaceSim_TemporaryKey.pfx" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\XNA Game Studio\Microsoft.Xna.GameStudio.targets" />

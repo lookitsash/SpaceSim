@@ -17,6 +17,8 @@ using BEPUphysics.BroadPhaseEntries.MobileCollidables;
 using BEPUphysics.BroadPhaseEntries;
 using BEPUphysics.NarrowPhaseSystems.Pairs;
 using ParticleEngine;
+using System.Threading;
+using SpaceSimLibrary.Networking;
 
 namespace SpaceSim
 {
@@ -25,26 +27,23 @@ namespace SpaceSim
     /// </summary>
     public class SpaceSimGame : Microsoft.Xna.Framework.Game
     {
-        Space space;
+        public static Space space;
 
         private int framesPerSecond, frames;
         private TimeSpan elapsedTime = TimeSpan.Zero;
 
-        public static GraphicsDeviceManager graphics;
+        public CustomGraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
-        SpriteFont spriteFont;
-        public static ConsoleWindow ConsoleWindow;
+        static SpriteFont spriteFont;
 
         KeyboardState previousKeyboardState = new KeyboardState();
         KeyboardState currentKeyboardState = new KeyboardState();
 
-        Texture2D textureCockpit;
+        static Texture2D textureCockpit;
 
         //public static BloomPostprocess.BloomComponent bloom;
 
-        //Ship ship;
-        Earth earth;
-        public static ChaseCamera camera = null;
+        public ChaseCamera camera = null;
         Skybox skybox;
 
         public static bool Paused = false;
@@ -52,19 +51,17 @@ namespace SpaceSim
         //StarfieldComponent starfieldComponent;
         //Starfield starfield;
 
-        Model modelShip, modelEarth, modelAsteroid, modelLaser, modelMoon, modelShipAI, modelProbe, modelMisc, modelStation1, modelClaw, modelAsteroid2, modelBuckRogers, modelSatellite1, modelCygnus, modelBarracuda;
+        public static Model modelShip, modelEarth, modelAsteroid, modelLaser, modelMoon, modelShipAI, modelProbe, modelMisc, modelStation1, modelClaw, modelAsteroid2, modelBuckRogers, modelSatellite1, modelCygnus, modelBarracuda;
 
-        public List<SpaceEntity> EntityCollection = new List<SpaceEntity>();
+        bool cameraSpringEnabled = false;
 
-        private Vector4 globalAmbient;
-        private Sunlight sunlight;
+        public SecondaryGame SecondaryGame = null;
 
-        bool cameraSpringEnabled = true;
-
-        public SpaceSimGame()
+        public SpaceSimGame(GameDisplayType gameDisplayType)
         {
             //graphics = new TargetedGraphicsDeviceManager(this, 1);
-            graphics = new GraphicsDeviceManager(this);
+            //graphics = new GraphicsDeviceManager(this);
+            graphics = new CustomGraphicsDeviceManager(this, gameDisplayType);
             //new GraphicsDeviceManager
             Content.RootDirectory = "Content";
 
@@ -72,22 +69,6 @@ namespace SpaceSim
 
             //starfieldComponent = new StarfieldComponent(this);
             //Components.Add(starfieldComponent);
-
-            (ConsoleWindow = new ConsoleWindow()).Show();
-            ConsoleWindow.OnInput += new ConsoleWindow.ConsoleInputEventHandler(OnConsoleInput);
-
-            ConsoleWindow.LogTimestamp = false;
-            ConsoleWindow.Log("Welcome to my SpaceSim game in development.\r\nUse the keys below to navigate:\r\n");
-            ConsoleWindow.Log("W - Pitch down");
-            ConsoleWindow.Log("S - Pitch up");
-            ConsoleWindow.Log("A - Turn left");
-            ConsoleWindow.Log("D - Turn right");
-            ConsoleWindow.Log("Q - Roll left");
-            ConsoleWindow.Log("E - Roll right");
-            ConsoleWindow.Log("Space - Move forwards");
-            ConsoleWindow.Log("LeftCtrl - Move backwards");
-            ConsoleWindow.Log("\r\nIf you fly into asteroids, they will move using realistic physics.\r\nIf you bump them too much, they will explode into smaller asteroids");
-            ConsoleWindow.LogTimestamp = true;
 
             // Construct our particle system components.
             explosionParticles = new ExplosionParticleSystem(this, Content);
@@ -297,24 +278,6 @@ namespace SpaceSim
             savedMousePosY = state.Y;
         }
 
-        private void OnConsoleInput(string str)
-        {
-            if (str == "exit" || str == "quit") Exit();
-        }
-
-        public SpaceEntity GetCollidingEntity(SpaceEntity source)
-        {
-            foreach (SpaceEntity target in EntityCollection)
-            {
-                if (target != source)
-                {
-                    //BoundingSphere c1BoundingSphere = c1.model.Meshes[i].BoundingSphere;
-                    //c1BoundingSphere.Center += c1.position;
-                }
-            }
-            return null;
-        }
-
         /// <summary>
         /// Allows the game to perform any initialization it needs to before starting to run.
         /// This is where it can query for any required services and load any non-graphic
@@ -343,19 +306,6 @@ namespace SpaceSim
             camera.NearPlaneDistance = 0.1f;
             camera.FarPlaneDistance = 100000.0f;
 
-            //EntityCollection.Add(ship = new Ship(GraphicsDevice, modelShip));
-            //ship.Position = new Vector3(0, 0, 44000);
-
-            EntityCollection.Add(earth = new Earth(GraphicsDevice, modelEarth));
-            earth.LoadContent(Content);
-            earth.Scale = 50;
-            earth.Position = new Vector3(0, 0, -200);
-
-            sunlight.direction = new Vector4(Vector3.Forward, 0.0f);
-            sunlight.color = new Vector4(1.0f, 0.941f, 0.898f, 1.0f);
-
-            // Setup scene's global ambient.
-            globalAmbient = new Vector4(0.2f, 0.2f, 0.2f, 1.0f);
 
             // Set the camera aspect ratio
             // This must be done after the class to base.Initalize() which will
@@ -371,6 +321,7 @@ namespace SpaceSim
         }
 
         public static Entity entityShip, entityEarth, entityAsteroid; //, entityAI, entityProbe;
+        public static ManualResetEvent GameInitialized = new ManualResetEvent(false);
 
         public static Effect effectBlur;
 
@@ -380,105 +331,27 @@ namespace SpaceSim
         /// </summary>
         protected override void LoadContent()
         {
-            // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            effectBlur = Content.Load<Effect>("Effects/Blur");
-
-            textureCockpit = Content.Load<Texture2D>("Textures/Cockpit6");
-
-            modelShip = Content.Load<Model>("Models/Ship");
-            modelEarth = Content.Load<Model>("Models/earth");
-            modelAsteroid = Content.Load<Model>("Models/asteroid");
-            modelLaser = Content.Load<Model>("Models/Laser");
-            modelMoon = Content.Load<Model>("Models/moon");
-            modelShipAI = Content.Load<Model>("Models/Shuttle");
-            modelProbe = Content.Load<Model>("Models/probe");
-
-            modelStation1 = Content.Load<Model>("Models/station1");
-            modelClaw = Content.Load<Model>("Models/claw");
-            modelAsteroid2 = Content.Load<Model>("Models/asteroid2");
-            modelBuckRogers = Content.Load<Model>("Models/buckrogers");
-            modelSatellite1 = Content.Load<Model>("Models/satellite1");
-            modelCygnus = Content.Load<Model>("Models/cygnus");
-            modelBarracuda = Content.Load<Model>("Models/barracuda");
-
-            //modelMisc = Content.Load<Model>("Models/barracuda");
-
-            spriteFont = Content.Load<SpriteFont>("Fonts/Font1");
-
-            /*
-            BoundingSphere bounds = new BoundingSphere();
-            foreach (ModelMesh mesh in modelEarth.Meshes)
-                bounds = BoundingSphere.CreateMerged(bounds, mesh.BoundingSphere);
-            float shipRadius = bounds.Radius;
-            */
             skybox = new Skybox("Textures/Background1", Content);
 
-            // TODO: use this.Content to load your game content here
-            space = new Space();
-            //Box ground = new Box(BEPUutilities.Vector3.Zero, 30, 1, 30);
-            //space.Add(ground);
-
-            entityShip = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 350), 1, 100), modelShip, .001f, GameModelType.Ship, 0, 0, typeof(EntityModel));
-            entityShip.AngularDamping = 0.9f;
-            //entityShip.LinearDamping = 0.9f;
-            entityShip.LinearDamping = 0.0f;
-            entityShip.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
-            ShipSpeedIndex = ShipSpeedIndexZero;
-
-            entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -200), 225), modelEarth, 50f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
-            entityEarth.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
-            entityEarth.AngularVelocity = MathConverter.Convert(new Vector3(0.005f, 0.001f, 0.001f));
-            entityEarth.AngularDamping = 0f;
-
-            Entity moon = AddEntity(space, new Sphere(new BEPUutilities.Vector3(-550, 100, -350), 20), modelMoon, 0.1f, GameModelType.Planet, 0, 0, typeof(EntityModel));
-            moon.AngularVelocity = MathConverter.Convert(new Vector3(0.05f, 0.05f, 0));
-            moon.AngularDamping = 0f;
-
-            //entityAI = AddEntity(space, new Box(new BEPUutilities.Vector3(0, 10, 200), 6, 6, 6, 2000), modelShipAI, 0.3f, GameModelType.Ship, 0, 0, typeof(EntityModel));
-
-            BEPUutilities.Vector3[] vertices;
-            int[] indices;
-            ConsoleWindow.Log("start model extractor");
-            ConsoleWindow.TimerStart();
-            ModelDataExtractor.GetVerticesAndIndicesFromModel(modelShipAI, out vertices, out indices);
-            
-            for (int i = 0; i < vertices.Length; i++)
+            if (graphics.GameDisplayType != GameDisplayType.Cockpit)
             {
-                vertices[i] = vertices[i] * 0.5f;
+                GameInitialized.WaitOne();
+                Program.ConsoleWindow.Log("noncockpit loadcontent");
             }
-            //BoundingBox b = UpdateBoundingBox(modelShipAI, Matrix.CreateWorld(Vector3.Zero, Vector3.Forward, Vector3.Up));
-            //modelShipAI.R
-            ConvexHull hull = new ConvexHull(vertices, 100);
-            ConsoleWindow.Log("stop model extractor: " + ConsoleWindow.TimerStop().TotalSeconds);
-            //entityAI = AddEntity(space, hull, modelShipAI, 0.5f, GameModelType.Ship, 0, 0, typeof(EntityModel));
-            //entityAI.Position = new BEPUutilities.Vector3(0, 10, 300);
-            
-            //entityAI.WorldTransform 
-            // graphic.LocalTransform = Matrix.CreateTranslation(-hull.Position);
-
-            //entityProbe = AddEntity(space, new Sphere(new BEPUutilities.Vector3(1000, 1000, 1000), 1, 2000), modelProbe, 0.2f, GameModelType.Ship, 0, 0, typeof(EntityModel));
-
-            if (modelMisc != null)
+            else
             {
-                //BoundingBox b = CalculateBoundingBox(modelMisc);
+                Program.ConsoleWindow.Log("cockpit loadcontent");
+                textureCockpit = Content.Load<Texture2D>("Textures/Cockpit6");
+                spriteFont = Content.Load<SpriteFont>("Fonts/Font1");
 
-                Vector3 modelMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
-                Vector3 modelMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
-                ModelDataExtractor.GetVerticesAndIndicesFromModel(modelMisc, out vertices, out indices);
-                for (int i = 0; i < vertices.Length; i++)
-                {
-                    modelMin = Vector3.Min(modelMin, MathConverter.Convert(vertices[i]));
-                    modelMax = Vector3.Max(modelMax, MathConverter.Convert(vertices[i]));
-                }
-                BoundingBox b = new BoundingBox(modelMin, modelMax);
-                BoundingSphere bs = new BoundingSphere();
-                foreach (ModelMesh mesh in modelMisc.Meshes)
-                    bs = BoundingSphere.CreateMerged(bs, mesh.BoundingSphere);
-                
-                    //bounds = BoundingSphere.CreateMerged(bounds, mesh.BoundingSphere);
-                //b = UpdateBoundingBox(modelMisc, Matrix.CreateWorld(Vector3.Zero, Vector3.Forward, Vector3.Up));
+                modelShip = Content.Load<Model>("Models/Ship");
+                modelEarth = Content.Load<Model>("Models/earth");
+                modelAsteroid = Content.Load<Model>("Models/asteroid");
+                modelLaser = Content.Load<Model>("Models/Laser");
+                modelMoon = Content.Load<Model>("Models/moon");
+                modelShipAI = Content.Load<Model>("Models/Shuttle");
+                modelProbe = Content.Load<Model>("Models/probe");
 
                 //Scales
                 //station1 - 0.1f
@@ -489,75 +362,41 @@ namespace SpaceSim
                 //cygnus - 0.1f;
                 //barracuda - 0.3f; // min value for convexhull
 
-                
-                float scale = 0.1f;
-                float width = Math.Abs(b.Min.X - b.Max.X) * scale;
-                float height = Math.Abs(b.Min.Y - b.Max.Y) * scale;
-                float length = Math.Abs(b.Min.Z - b.Max.Z) * scale;
-                //float width = bs.Radius * 2.0f * scale;
-                //float height = bs.Radius * 2.0f * scale;
-                //float length = bs.Radius * 2.0f * scale;
-                //float width = 2.5f * scale;
-                //float height = 2.9f * scale;
-                //float length = 2.5f * scale;
-                //AddEntity(space, new Box(new BEPUutilities.Vector3(0, 10, 250), width, height, length), modelMisc, scale, GameModelType.Ship, 0, 0, typeof(EntityModel));
-            }
-            if (modelMisc != null)
-            {
-                //BEPUutilities.Vector3[] vertices;
-                //int[] indices;
+                modelStation1 = Content.Load<Model>("Models/station1");
+                modelClaw = Content.Load<Model>("Models/claw");
+                //modelAsteroid2 = Content.Load<Model>("Models/asteroid2");
+                //modelBuckRogers = Content.Load<Model>("Models/buckrogers");
+                modelSatellite1 = Content.Load<Model>("Models/satellite1");
+                modelCygnus = Content.Load<Model>("Models/cygnus");
+                modelBarracuda = Content.Load<Model>("Models/barracuda");
 
-                ModelDataExtractor.GetVerticesAndIndicesFromModel(modelMisc, out vertices, out indices);
-                for (int i = 0; i < vertices.Length; i++)
-                {
-                    vertices[i] = vertices[i] * 0.3f;
-                }
-                Entity e = AddEntity(space, new ConvexHull(vertices, 100), modelMisc, 0.3f, GameModelType.Ship, 0, 0, typeof(EntityModel));
-                e.Position = MathConverter.Convert(new Vector3(0, 10, 250));
+                space = new Space();
+
+                entityShip = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 10, 350), 1, 100), modelShip, .001f, GameModelType.Ship, 0, 0, typeof(EntityModel));
+                entityShip.AngularDamping = 0.9f;
+                //entityShip.LinearDamping = 0.9f;
+                entityShip.LinearDamping = 0.0f;
+                entityShip.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
+                ShipSpeedIndex = ShipSpeedIndexZero;
+
+                entityEarth = AddEntity(space, new Sphere(new BEPUutilities.Vector3(0, 0, -200), 225), modelEarth, 50f, GameModelType.Planet, 0, 0, typeof(PlanetModel)); ;
+                entityEarth.CollisionInformation.Events.InitialCollisionDetected += HandleCollision;
+                entityEarth.AngularVelocity = MathConverter.Convert(new Vector3(0.005f, 0.001f, 0.001f));
+                entityEarth.AngularDamping = 0f;
+
+                Entity moon = AddEntity(space, new Sphere(new BEPUutilities.Vector3(-550, 100, -350), 20), modelMoon, 0.1f, GameModelType.Planet, 0, 0, typeof(EntityModel));
+                moon.AngularVelocity = MathConverter.Convert(new Vector3(0.05f, 0.05f, 0));
+                moon.AngularDamping = 0f;
+
+                GenerateAsteroids();
+                GenerateNPCs();
+
+                space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
+
+                GameInitialized.Set();
             }
 
-            //new ConvexHull(
-            //DisplayEntityModel
             
-
-            GenerateAsteroids();
-            GenerateNPCs();
-
-            space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
-
-            //starfieldComponent.Generate(10000, 40000);
-
-            /*
-            //Go through the list of entities in the space and create a graphical representation for them.
-            foreach (Entity e in space.Entities)
-            {
-                Box box = e as Box;
-                Sphere sphere = e as Sphere;
-                if (box != null) //This won't create any graphics for an entity that isn't a box since the model being used is a box.
-                {
-                    if (entityShip == null)
-                    {
-                        entityShip = box;
-                        entityShip.AngularDamping = 0.9f;
-                        entityShip.LinearDamping = 0.9f;
-                    }
-
-                    Matrix scaling = Matrix.CreateScale(0.1f, 0.1f, 0.1f); //Since the cube model is 1x1x1, it needs to be scaled to match the size of each individual box.
-                    EntityModel model = new EntityModel(e, modelShip, MathConverter.Convert(scaling), this);
-                    //Add the drawable game component for this entity to the game.
-                    Components.Add(model);
-                    e.Tag = model; //set the object tag of this entity to the model so that it's easy to delete the graphics component later if the entity is removed.
-                }
-                else if (sphere != null)
-                {
-                    Matrix scaling = Matrix.CreateScale(5000f, 5000f, 5000f); //Since the cube model is 1x1x1, it needs to be scaled to match the size of each individual box.
-                    PlanetModel model = new PlanetModel(e, modelEarth, MathConverter.Convert(scaling), this);
-                    //Add the drawable game component for this entity to the game.
-                    Components.Add(model);
-                    e.Tag = model; //set the object tag of this entity to the model so that it's easy to delete the graphics component later if the entity is removed.
-                }
-            }
-            */
         }
 
         public BoundingBox CalculateBoundingBox(Model model)
@@ -621,6 +460,8 @@ namespace SpaceSim
         //private Vector3? aiTargetPos = null;
         private void UpdateAI(GameTime gameTime)
         {
+            return;
+
             foreach (Entity aiEntity in AIEntities)
             {
                 EntityModel aiEntityModel = (EntityModel)aiEntity.Tag;
@@ -682,13 +523,14 @@ namespace SpaceSim
         private void GenerateNPCs()
         {
             List<NPCData> npcTypes = new List<NPCData>();
+            npcTypes.Add(new NPCData() { model = modelShip, scale = 0.001f });
             //npcTypes.Add(new NPCData() { model = modelClaw, scale = 0.05f });
-            npcTypes.Add(new NPCData() { model = modelBuckRogers, scale = 0.05f });
+            //npcTypes.Add(new NPCData() { model = modelBuckRogers, scale = 0.05f });
             //npcTypes.Add(new NPCData() { model = modelCygnus, scale = 0.1f });
             //npcTypes.Add(new NPCData() { model = modelBarracuda, scale = 0.3f });
 
             Random r = new Random();
-            int maxNPCs = 100, npcTypeIndex = 0, maxRange = 2000;
+            int maxNPCs = 10, npcTypeIndex = 0, maxRange = 2000;
             for (int i = 0; i < maxNPCs; i++)
             {
                 NPCData npcData = npcTypes[npcTypeIndex++];
@@ -706,8 +548,8 @@ namespace SpaceSim
 
         private void GenerateAsteroids()
         {
-            ConsoleWindow.Log("Generating asteroids...");
-            ConsoleWindow.TimerStart();
+            Program.ConsoleWindow.Log("Generating asteroids...");
+            Program.ConsoleWindow.TimerStart();
             IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
 
             int maxAsteroids = 1000, maxRange = 2000, asteroidsCreated = 0;
@@ -723,7 +565,7 @@ namespace SpaceSim
                     asteroidsCreated++;
                 }
             }
-            ConsoleWindow.Log(asteroidsCreated + " asteroids created in " + ConsoleWindow.TimerStop().TotalSeconds + " sec");
+            Program.ConsoleWindow.Log(asteroidsCreated + " asteroids created in " + Program.ConsoleWindow.TimerStop().TotalSeconds + " sec");
         }
 
         ParticleSystem explosionParticles;
@@ -865,6 +707,7 @@ namespace SpaceSim
 
         private Entity AddEntity(Space space, Entity entity, Model model, Matrix scale, GameModelType gameModelType, int strength, int destructionDivisions, Type entityType)
         {
+            int entityID = ++CURID;
             space.Add(entity);
             DrawableGameComponent entityModel = null;
             if (entityType == typeof(EntityModel))
@@ -879,6 +722,7 @@ namespace SpaceSim
                 ((EntityModel)entityModel).Scale = scale.M11;
                 ((EntityModel)entityModel).Strength = strength;
                 ((EntityModel)entityModel).MaxDestructionDivision = destructionDivisions;
+                ((EntityModel)entityModel).ID = entityID;
                 entity.Tag = entityModel;
 
                 if (gameModelType == GameModelType.Asteroid)
@@ -897,6 +741,7 @@ namespace SpaceSim
             {
                 entityModel = new PlanetModel(entity, model, MathConverter.Convert(scale), this);
                 entity.Tag = entityModel;
+                ((PlanetModel)entityModel).ID = entityID;
             }
             else if (entityType == typeof(ProjectileModel))
             {
@@ -908,13 +753,24 @@ namespace SpaceSim
             }
             Components.Add(entityModel);
 
+            CommandWriter.Reset();
+            CommandWriter.WriteCommand(Commands.RegisterEntity);
+            CommandWriter.WriteData(entityID);
+            CommandWriter.WriteData((byte)gameModelType);
+            CommandWriter.WriteMatrix(scale);
+            CommandWriter.WriteMatrix(MathConverter.Convert(entity.WorldTransform));
+            Server.Broadcast(CommandWriter.GetBytes());
+
             return entity;
         }
+
+        private static int CURID = 0;
+        private CommandWriter CommandWriter = new CommandWriter();
 
         private float ShipWeaponFireReloadDuration = 0.1f;
         private DateTime ShipWeaponFired = DateTime.MinValue;
         private bool ShipWeaponAvailable { get { return (DateTime.Now - ShipWeaponFired).TotalSeconds >= ShipWeaponFireReloadDuration; } }
-        List<Entity> projectiles = new List<Entity>();
+        public List<Entity> projectiles = new List<Entity>();
 
         private void FireWeapon()
         {
@@ -923,7 +779,7 @@ namespace SpaceSim
                 ShipWeaponFired = DateTime.Now;
                 Vector3 pos = MathConverter.Convert(entityShip.Position + (entityShip.WorldTransform.Forward * 1.3f));
                 Entity projectile = AddEntity(space, new Cylinder(MathConverter.Convert(pos), 0.5f, 0.1f, 0.01f), modelLaser, Matrix.CreateScale(0.02f, 0.02f, 0.01f), GameModelType.Projectile, 3, 3, typeof(ProjectileModel));
-                projectile.LinearVelocity = entityShip.WorldTransform.Forward * (40f + ShipSpeed);
+                projectile.LinearVelocity = entityShip.WorldTransform.Forward * (40f + ShipSpeedMax);
                 projectiles.Add(projectile);
                 //projectiles.Add(new Projectile(MathConverter.Convert(entityShip.Position), MathConverter.Convert(entityShip.WorldTransform.Forward*10), explosionParticles, explosionSmokeParticles, projectileTrailParticles));
             }
@@ -955,6 +811,7 @@ namespace SpaceSim
         private float[] ShipSpeeds = { -30, -15, 0, 5, 10, 25, 40, 60 };
         private int ShipSpeedIndexZero { get { for (int i = 0; i < ShipSpeeds.Length; i++) { if (ShipSpeeds[i] == 0) return i; } return 0; } }
         private float ShipSpeed { get { return ShipSpeeds[ShipSpeedIndex]; } }
+        private float ShipSpeedMax { get { return ShipSpeeds[ShipSpeeds.Length - 1]; } }
         private void ShipSpeedIncrease()
         {
             ShipSpeedIndex++;
@@ -998,107 +855,51 @@ namespace SpaceSim
                 IsMouseVisible = Paused;
             }
 
-            if (Paused) return;
+            //if (Paused) return;
 
-            if (currentKeyboardState.IsKeyDown(Keys.Space))
+            if (!Paused && graphics.GameDisplayType == GameDisplayType.Cockpit)
             {
-                FireWeapon();
+
+                if (currentKeyboardState.IsKeyDown(Keys.Space))
+                {
+                    FireWeapon();
+                }
+
+                if (!Paused)
+                {
+                    Rectangle clientBounds = Window.ClientBounds;
+
+                    int centerX = clientBounds.Width / 2;
+                    int centerY = clientBounds.Height / 2;
+                    int deltaX = centerX - currentMouseState.X;
+                    int deltaY = centerY - currentMouseState.Y;
+
+                    Mouse.SetPosition(centerX, centerY);
+
+                    PerformMouseFiltering((float)deltaX, (float)deltaY);
+                    PerformMouseSmoothing(smoothedMouseMovement.X, smoothedMouseMovement.Y);
+
+                    float dx = smoothedMouseMovement.X;
+                    float dy = smoothedMouseMovement.Y;
+
+                    if (dx != 0) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, dx * 0.01f), 1.0f);
+                    if (dy != 0) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, dy * -0.01f), 1.0f);
+
+                    if (currentMouseState.LeftButton == ButtonState.Pressed) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, -0.15f), 1.0f);
+                    if (currentMouseState.RightButton == ButtonState.Pressed) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0.15f), 1.0f);
+
+                    float maxForwardSpeed = 50;
+                    float maxReverseSpeed = -50;
+                    int speedIncrement = 2;
+                    float mouseWheelDirection = GetMouseWheelDirection();
+                    if (mouseWheelDirection > 0) ShipSpeedIncrease();
+                    else if (mouseWheelDirection < 0) ShipSpeedDecrease();
+                    else if (currentMouseState.MiddleButton == ButtonState.Pressed) ShipSpeedZero();
+                    entityShip.LinearVelocity = entityShip.WorldTransform.Forward * ShipSpeed;
+                }
+
+                space.Update();
             }
-
-            /*
-            if (previousKeyboardState.IsKeyUp(Keys.RightControl) && (currentKeyboardState.IsKeyDown(Keys.RightControl)))
-            {
-                FireWeapon();
-            }
-            
-            if (currentKeyboardState.IsKeyDown(Keys.A))
-            {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0.05f), 1.0f);
-            }
-            else if (currentKeyboardState.IsKeyDown(Keys.D))
-            {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, -0.05f), 1.0f);
-            }
-            
-            if (currentKeyboardState.IsKeyDown(Keys.W))
-            {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0.05f), 1.0f);
-            }
-            else if (currentKeyboardState.IsKeyDown(Keys.S))
-            {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, -0.05f), 1.0f);
-            }
-
-            if (currentKeyboardState.IsKeyDown(Keys.E))
-            {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0.15f), 1.0f);
-            }
-            else if (currentKeyboardState.IsKeyDown(Keys.Q))
-            {
-                entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, -0.15f), 1.0f);
-            }
-
-            if (currentKeyboardState.IsKeyDown(Keys.Space))
-            {
-                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * 10;
-            }
-            else if (currentKeyboardState.IsKeyDown(Keys.LeftControl))
-            {
-                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * -5;
-            }
-            */
-
-            if (!Paused)
-            {
-                Rectangle clientBounds = Window.ClientBounds;
-
-                int centerX = clientBounds.Width / 2;
-                int centerY = clientBounds.Height / 2;
-                int deltaX = centerX - currentMouseState.X;
-                int deltaY = centerY - currentMouseState.Y;
-
-                Mouse.SetPosition(centerX, centerY);
-
-                PerformMouseFiltering((float)deltaX, (float)deltaY);
-                PerformMouseSmoothing(smoothedMouseMovement.X, smoothedMouseMovement.Y);
-
-                float dx = smoothedMouseMovement.X;
-                float dy = smoothedMouseMovement.Y;
-
-                if (dx != 0) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Up, dx * 0.01f), 1.0f);
-                if (dy != 0) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Left, dy * -0.01f), 1.0f);
-
-                if (currentMouseState.LeftButton == ButtonState.Pressed) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, -0.15f), 1.0f);
-                if (currentMouseState.RightButton == ButtonState.Pressed) entityShip.AngularVelocity += EntityRotator.GetAngularVelocity(BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0), BEPUutilities.Quaternion.CreateFromAxisAngle(entityShip.WorldTransform.Forward, 0.15f), 1.0f);
-
-                float maxForwardSpeed = 50;
-                float maxReverseSpeed = -50;
-                int speedIncrement = 2;
-                float mouseWheelDirection = GetMouseWheelDirection();
-                if (mouseWheelDirection > 0) ShipSpeedIncrease();
-                else if (mouseWheelDirection < 0) ShipSpeedDecrease();
-                else if (currentMouseState.MiddleButton == ButtonState.Pressed) ShipSpeedZero();
-                entityShip.LinearVelocity = entityShip.WorldTransform.Forward * ShipSpeed;
-            }
-            //ConsoleWindow.Log(dx + "," + dy);
-            
-            
-            //ConsoleWindow.Log(entityShip.WorldTransform.Up.ToString());
-            //entityShip.WorldTransform.U
-
-            // Reset the ship on R key or right thumb stick clicked
-            /*
-            if (currentKeyboardState.IsKeyDown(Keys.R))
-            {
-                ship.Reset();
-                camera.Reset();
-            }
-
-            // Update the ship
-            ship.Update(gameTime);
-            */
-            earth.Update(gameTime);
-
             // Update the camera to chase the new target
             UpdateCameraChaseTarget();
 
@@ -1109,14 +910,33 @@ namespace SpaceSim
             else
                 camera.Reset();
 
-            space.Update();
-
             ProcessQueuedExplosions();
 
 
             UpdateProjectiles(gameTime);
             UpdateFrameRate(gameTime);
             UpdateAI(gameTime);
+
+
+            foreach (Entity entity in space.Entities)
+            {
+                int entityID = 0;
+                if (entity.Tag != null && entity.Tag is EntityModel && (((EntityModel)entity.Tag).GameModelType == GameModelType.Ship || ((EntityModel)entity.Tag).ShouldRender))
+                {
+                    entityID = ((EntityModel)entity.Tag).ID;
+                }
+
+                if (entityID > 0)
+                {
+                    CommandWriter.Reset();
+                    CommandWriter.WriteCommand(Commands.UpdateEntity);
+                    CommandWriter.WriteData(entityID);
+                    CommandWriter.WriteMatrix(MathConverter.Convert(entity.WorldTransform));
+                    Server.Broadcast(CommandWriter.GetBytes());
+                }
+                
+            }
+
             base.Update(gameTime);
         }
 
@@ -1167,12 +987,17 @@ namespace SpaceSim
 
         Vector2 infoFontPos = new Vector2(1.0f, 1.0f);
 
+        RenderTarget2D renderTarget;
+        Texture2D renderTexture;
         /// <summary>
         /// This is called when the game should draw itself.
         /// </summary>
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
+            //if (renderTarget == null) renderTarget = new RenderTarget2D(GraphicsDevice, GraphicsDevice.PresentationParameters.BackBufferWidth, GraphicsDevice.PresentationParameters.BackBufferHeight);
+            //GraphicsDevice.SetRenderTarget(renderTarget);
+
             GraphicsDevice.Clear(Color.Black);
 
             //bloom.BeginDraw();
@@ -1193,7 +1018,6 @@ namespace SpaceSim
             //DrawModel(modelShip, ship.World);
             //DrawModel(modelEarth, ship.World);
             //DrawEarth();
-            //DrawCockpit(gameTime);
 
             // Pass camera matrices through to the particle system components.
             explosionParticles.SetCamera(camera.View, camera.Projection);
@@ -1221,6 +1045,8 @@ namespace SpaceSim
             }
             */
 
+            DrawCockpit(gameTime);
+
             ///*
             spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
             spriteBatch.DrawString(spriteFont, "FPS: " + framesPerSecond + "\nShip Speed: " + ShipSpeed, infoFontPos, Color.Yellow);
@@ -1230,6 +1056,22 @@ namespace SpaceSim
             GraphicsDevice.BlendState = BlendState.Opaque;
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
 
+            /*
+            GraphicsDevice.SetRenderTarget(null);
+            renderTexture = (Texture2D)renderTarget;
+
+            spriteBatch.Begin();
+            spriteBatch.Draw(renderTexture, new Vector2(0, 0), null, Color.White, 0, new Vector2(0, 0), 0.4f, SpriteEffects.None, 1);
+            spriteBatch.End();
+
+            if (SecondaryGame != null && SecondaryGame.Initialized)
+            {
+                Color[] colors = new Color[renderTexture.Width * renderTexture.Height];
+                renderTexture.GetData(colors);
+                SecondaryGame.RenderTexture(colors, renderTexture.Width, renderTexture.Height);
+                //SecondaryGame.RenderTexture(renderTarget);
+            }
+            */
             IncrementFrameCounter();
         }
 
@@ -1259,9 +1101,10 @@ namespace SpaceSim
 
         private void DrawCockpit(GameTime gameTime)
         {
-            spriteBatch.Begin(SpriteSortMode.BackToFront, BlendState.AlphaBlend);
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
 
             spriteBatch.Draw(textureCockpit, new Rectangle(0, 0, Window.ClientBounds.Width, Window.ClientBounds.Height), Color.White);
+            //spriteBatch.Draw(textureCockpit, new Rectangle(0, 0, Window.ClientBounds.Width, Window.ClientBounds.Height), null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 1);
             spriteBatch.End();
         }
 
@@ -1301,44 +1144,6 @@ namespace SpaceSim
             spriteBatch.End();
         }
 
-        private void DrawEarth()
-        {
-            //Matrix rotation = Matrix.CreateRotationY(earth.rotation) * Matrix.CreateRotationZ(MathHelper.ToRadians(-23.4f));
-
-            foreach (ModelMesh m in earth.model.Meshes)
-            {
-                foreach (Effect e in m.Effects)
-                {
-                    if (false) //hideClouds)
-                    {
-                        e.CurrentTechnique = e.Techniques["EarthWithoutClouds"];
-                    }
-                    else
-                    {
-                        e.CurrentTechnique = e.Techniques["EarthWithClouds"];
-                        e.Parameters["cloudStrength"].SetValue(earth.cloudStrength);
-                    }
-
-                    e.Parameters["world"].SetValue(earth.World);
-                    e.Parameters["view"].SetValue(camera.View);
-                    e.Parameters["projection"].SetValue(camera.Projection);
-                    e.Parameters["cameraPos"].SetValue(new Vector4(camera.Position, 1.0f));
-                    e.Parameters["globalAmbient"].SetValue(globalAmbient);
-                    e.Parameters["lightDir"].SetValue(sunlight.direction);
-                    e.Parameters["lightColor"].SetValue(sunlight.color);
-                    e.Parameters["materialAmbient"].SetValue(earth.ambient);
-                    e.Parameters["materialDiffuse"].SetValue(earth.diffuse);
-                    e.Parameters["materialSpecular"].SetValue(earth.specular);
-                    e.Parameters["materialShininess"].SetValue(earth.shininess);
-                    e.Parameters["landOceanColorGlossMap"].SetValue(earth.dayTexture);
-                    e.Parameters["cloudColorMap"].SetValue(earth.cloudTexture);
-                    e.Parameters["nightColorMap"].SetValue(earth.nightTexture);
-                    e.Parameters["normalMap"].SetValue(earth.normalMapTexture);
-                }
-
-                m.Draw();
-            }
-        }
     }
 
     public struct Sunlight

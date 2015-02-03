@@ -119,8 +119,8 @@ namespace SpaceSim
                 foreach (BasicEffect effect in mesh.Effects)
                 {
                     effect.World = boneTransforms[mesh.ParentBone.Index] * worldMatrix;
-                    effect.View = SpaceSimGame.camera.View;
-                    effect.Projection = SpaceSimGame.camera.Projection;
+                    effect.View = ((SpaceSimGame)this.Game).camera.View;
+                    effect.Projection = ((SpaceSimGame)this.Game).camera.Projection;
                 }
                 mesh.Draw();
             }

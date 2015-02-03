@@ -31,6 +31,8 @@ namespace SpaceSim
         }
         */
 
+        public int ID;
+
         public GameModelType GameModelType;
         public Model model;
         public Effect effect;
@@ -133,9 +135,9 @@ namespace SpaceSim
                     }
 
                     e.Parameters["world"].SetValue(worldMatrix);
-                    e.Parameters["view"].SetValue(SpaceSimGame.camera.View);
-                    e.Parameters["projection"].SetValue(SpaceSimGame.camera.Projection);
-                    e.Parameters["cameraPos"].SetValue(new Vector4(SpaceSimGame.camera.Position, 1.0f));
+                    e.Parameters["view"].SetValue(((SpaceSimGame)this.Game).camera.View);
+                    e.Parameters["projection"].SetValue(((SpaceSimGame)this.Game).camera.Projection);
+                    e.Parameters["cameraPos"].SetValue(new Vector4(((SpaceSimGame)this.Game).camera.Position, 1.0f));
                     e.Parameters["globalAmbient"].SetValue(globalAmbient);
                     e.Parameters["lightDir"].SetValue(sunlight.direction);
                     e.Parameters["lightColor"].SetValue(sunlight.color);
