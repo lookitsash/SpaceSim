@@ -13,9 +13,21 @@ namespace SpaceSimLibrary.Networking
     public class Client
     {
         private UdpClient UdpClient;
-        public Client()
+        public Client(int port)
         {
-            UdpClient = new UdpClient(12345);
+            //UdpClient = new UdpClient(port);
+            //UdpClient.BeginReceive(new AsyncCallback(dataReceived), null);
+            UdpClient = new UdpClient();
+            UdpClient.ExclusiveAddressUse = false;
+            IPEndPoint localEp = new IPEndPoint(IPAddress.Any, 2222);
+
+            UdpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            UdpClient.ExclusiveAddressUse = false;
+
+            UdpClient.Client.Bind(localEp);
+
+            IPAddress multicastaddress = IPAddress.Parse("239.0.0.222");
+            UdpClient.JoinMulticastGroup(multicastaddress);
             UdpClient.BeginReceive(new AsyncCallback(dataReceived), null);
         }
 
@@ -23,7 +35,7 @@ namespace SpaceSimLibrary.Networking
 
         private void dataReceived(IAsyncResult res)
         {
-            IPEndPoint remoteIpEndPoint = new IPEndPoint(IPAddress.Any, 8000);
+            IPEndPoint remoteIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
             byte[] data = UdpClient.EndReceive(res, ref remoteIpEndPoint);
 
             if (data.Length > 0)

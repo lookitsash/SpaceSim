@@ -145,7 +145,8 @@
     <Compile Include="Models\asteroid.fbx">
       <Name>asteroid</Name>
       <Importer>FbxImporter</Importer>
-      <Processor>ModelProcessor</Processor>
+      <Processor>InstancedModelProcessor</Processor>
+      <ProcessorParameters_TextureFormat>NoChange</ProcessorParameters_TextureFormat>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -330,6 +331,40 @@
       <Name>barracuda</Name>
       <Importer>FbxImporter</Importer>
       <Processor>ModelProcessor</Processor>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\InstancedModelPipeline\InstancedModelPipeline.csproj">
+      <Project>{42476962-22F6-46B7-9C1D-BE742D7F8FD1}</Project>
+      <Name>InstancedModelPipeline</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="InstancedModel.fx">
+      <Name>InstancedModel</Name>
+      <Importer>EffectImporter</Importer>
+      <Processor>EffectProcessor</Processor>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Models\InstancedModel.fx">
+      <Name>InstancedModel</Name>
+      <Importer>EffectImporter</Importer>
+      <Processor>EffectProcessor</Processor>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Models\Cats.fbx">
+      <Name>Cats</Name>
+      <Importer>FbxImporter</Importer>
+      <Processor>InstancedModelProcessor</Processor>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Models\cat.tga">
+      <Name>cat</Name>
+      <Importer>TextureImporter</Importer>
+      <Processor>TextureProcessor</Processor>
     </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\XNA Game Studio\$(XnaFrameworkVersion)\Microsoft.Xna.GameStudio.ContentPipeline.targets" />

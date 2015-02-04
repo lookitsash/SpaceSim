@@ -35,7 +35,20 @@ namespace SpaceSimV2
             new Thread(new ThreadStart(StartThread)).Start();
             */
 
-            using (SpaceSimGame game = new SpaceSimGame())
+            int clientPort = 12345;
+            CameraDirection cameraDirection = CameraDirection.Forward;
+            if (args.Length > 0)
+            {
+                if (args[0] == "-c2") cameraDirection = CameraDirection.Backward;
+                else if (args[0] == "-c3")
+                {
+                    cameraDirection = CameraDirection.Left;
+                    clientPort = 12346;
+                }
+                else if (args[0] == "-c4") cameraDirection = CameraDirection.Right;
+            }
+
+            using (SpaceSimGame game = new SpaceSimGame(cameraDirection, clientPort))
             {
                 game.Run();
             }

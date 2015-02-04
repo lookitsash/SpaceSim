@@ -22,14 +22,19 @@ namespace SpaceSimV2
         SpriteBatch spriteBatch;
         Client client;
         ChaseCamera camera = null;
+        Skybox skybox;
+        CameraDirection CameraDirection;
+        int ClientPort;
 
-        public Model modelAsteroid;
+        public Model modelAsteroid, modelLaser;
 
-        public SpaceSimGame()
+        public SpaceSimGame(CameraDirection cameraDirection, int clientPort)
         {
             graphics = new GraphicsDeviceManager(this);
+            CameraDirection = cameraDirection;
+            ClientPort = clientPort;
 
-            Content.RootDirectory = "Content";
+            Content.RootDirectory = "SpaceSimLibraryContent";
         }
 
         /// <summary>
@@ -78,9 +83,12 @@ namespace SpaceSimV2
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            modelAsteroid = Content.Load<Model>("Models/asteroid");
+            skybox = new Skybox("Textures/Background1", Content);
 
-            client = new Client();
+            modelAsteroid = Content.Load<Model>("Models/asteroid");
+            modelLaser = Content.Load<Model>("Models/Laser");
+
+            client = new Client(ClientPort);
             client.OnCommandReceived += new SpaceSimLibrary.Networking.CommandReceived(CommandReceived);
 
             // TODO: use this.Content to load your game content here
@@ -114,25 +122,32 @@ namespace SpaceSimV2
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(Color.Black);
+
+            RasterizerState originalRasterizerState = graphics.GraphicsDevice.RasterizerState;
+            RasterizerState rasterizerState = new RasterizerState();
+            rasterizerState.CullMode = CullMode.None;
+            graphics.GraphicsDevice.RasterizerState = rasterizerState;
+            skybox.Draw(camera.View, camera.Projection, camera.Position);
+            graphics.GraphicsDevice.RasterizerState = originalRasterizerState;
 
             int entityCount = ServerEntityIDs.Count;
             for (int i = 0; i < entityCount; i++)
             {
+                if (i >= ServerEntityIDs.Count) break;
                 int entityID = ServerEntityIDs[i];
 
                 if (!ServerEntities.ContainsKey(entityID)) continue;
                 ServerEntity entity = ServerEntities[entityID];
-                if (entity.GameModelType == GameModelType.Ship) continue;
+                if (entity.Model == null || entity.GameModelType == GameModelType.Ship) continue;
 
                 entity.Model.CopyAbsoluteBoneTransformsTo(entity.BoneTransforms);
-                Matrix world = entity.ModelTransform * entity.World;
                 foreach (ModelMesh mesh in entity.Model.Meshes)
                 {
                     foreach (BasicEffect effect in mesh.Effects)
                     {
                         effect.EnableDefaultLighting();
-                        effect.World = entity.BoneTransforms[mesh.ParentBone.Index] * world;
+                        effect.World = entity.BoneTransforms[mesh.ParentBone.Index] * entity.World;
                         effect.View = camera.View;
                         effect.Projection = camera.Projection;
                     }
@@ -143,9 +158,17 @@ namespace SpaceSimV2
             base.Draw(gameTime);
         }
 
+        private Model GetModel(GameModelType modelType)
+        {
+            if (modelType == GameModelType.Asteroid) return modelAsteroid;
+            else if (modelType == GameModelType.Projectile) return modelLaser;
+            else return null;
+        }
+
         private void CommandReceived(CommandReader cr)
         {
             Commands cmd = cr.ReadCommand();
+            /*            
             if (cmd == Commands.RegisterEntity)
             {
                 int entityID = cr.ReadData<int>();
@@ -153,8 +176,10 @@ namespace SpaceSimV2
                 Matrix modelTransform = cr.ReadMatrix();
                 Matrix world = cr.ReadMatrix();
                 Model model = modelAsteroid;
-                if (gameModelType == GameModelType.Ship || gameModelType == GameModelType.Asteroid)
+                //Console.WriteLine("RegisterEntity " + entityID + "," + gameModelType.ToString());
+                if (gameModelType == GameModelType.Ship || gameModelType == GameModelType.Asteroid || gameModelType == GameModelType.Projectile)
                 {
+                    if (gameModelType == GameModelType.Projectile) model = modelLaser;
                     if (!ServerEntities.ContainsKey(entityID))
                     {
                         ServerEntities.Add(entityID, new ServerEntity() { ID = entityID, GameModelType = gameModelType, ModelTransform = modelTransform, World = world, Model = model, BoneTransforms = new Matrix[model.Bones.Count] });
@@ -172,17 +197,48 @@ namespace SpaceSimV2
                     ServerEntityIDs.Remove(entityID);
                 }
             }
-            else if (cmd == Commands.UpdateEntity)
+            */
+            if (cmd == Commands.UpdateEntity)
             {
                 int entityID = cr.ReadData<int>();
+                GameModelType gameModelType = (GameModelType)cr.ReadData<byte>();
+                if (gameModelType == GameModelType.Asteroid)
+                {
+                }
                 Matrix world = cr.ReadMatrix();
+                ServerEntity entity = ServerEntities.ContainsKey(entityID) ? ServerEntities[entityID] : null;
+                if (entity == null)
+                {
+                    entity = new ServerEntity() { ID = entityID, GameModelType = gameModelType, World = world, Model = GetModel(gameModelType) };
+                    if (entity.Model != null) entity.BoneTransforms = new Matrix[entity.Model.Bones.Count];
+                    ServerEntities.Add(entityID, entity);
+                    ServerEntityIDs.Add(entityID);
+                    if (gameModelType == GameModelType.Ship) CameraTarget = entity;
+                }
+                else entity.World = world;
+
+                /*
                 if (ServerEntities.ContainsKey(entityID))
                 {
                     ServerEntity entity = ServerEntities[entityID];
+                    if (entity.GameModelType == GameModelType.Projectile)
+                    {
+                        //Console.WriteLine(world.Translation.X + "," + world.Translation.Y + "," + world.Translation.Z);
+                    }
                     entity.World = world;
                 }
+                else
+                {
+                    if (!missingEntityIDs.Contains(entityID))
+                    {
+                        Console.WriteLine("entityID " + entityID + " not found");
+                        missingEntityIDs.Add(entityID);
+                    }
+                }
+                 */
             }
         }
+        private List<int> missingEntityIDs = new List<int>();
 
         private Dictionary<int,ServerEntity> ServerEntities = new Dictionary<int,ServerEntity>();
         private List<int> ServerEntityIDs = new List<int>();
@@ -193,7 +249,10 @@ namespace SpaceSimV2
             if (CameraTarget != null)
             {
                 camera.ChasePosition = CameraTarget.World.Translation;
-                camera.ChaseDirection = CameraTarget.World.Forward;
+                if (CameraDirection == SpaceSimV2.CameraDirection.Forward) camera.ChaseDirection = CameraTarget.World.Forward;
+                else if (CameraDirection == SpaceSimV2.CameraDirection.Backward) camera.ChaseDirection = CameraTarget.World.Backward;
+                else if (CameraDirection == SpaceSimV2.CameraDirection.Left) camera.ChaseDirection = CameraTarget.World.Left;
+                else if (CameraDirection == SpaceSimV2.CameraDirection.Right) camera.ChaseDirection = CameraTarget.World.Right;
                 camera.Up = CameraTarget.World.Up;
             }
         }
@@ -203,7 +262,7 @@ namespace SpaceSimV2
     {
         public int ID;
         public GameModelType GameModelType;
-        public Matrix ModelTransform, World;
+        public Matrix World;
         public Model Model;
         public Matrix[] BoneTransforms;
     }
@@ -215,5 +274,13 @@ namespace SpaceSimV2
         Asteroid,
         Projectile,
         ShipNPC
+    }
+
+    public enum CameraDirection
+    {
+        Forward,
+        Backward,
+        Left,
+        Right
     }
 }

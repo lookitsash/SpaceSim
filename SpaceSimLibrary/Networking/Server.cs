@@ -6,20 +6,126 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO;
 using System.Threading;
+using Microsoft.Xna.Framework;
 
 namespace SpaceSimLibrary.Networking
 {
+    public class ServerEntity
+    {
+        public int ID;
+        public byte GameModelType;
+        public Matrix World;
+        public bool Updated;
+    }
+
     public class Server
     {
+        static bool Active = false;
+        static Dictionary<int, ServerEntity> ServerEntities = new Dictionary<int, ServerEntity>();
+        static List<int> ServerEntityIDs = new List<int>();
+
+        public static void UpdateServerEntity(int entityID, byte gameModelType, Matrix world)
+        {
+            if (gameModelType == (byte)2)
+            {
+            }
+            ServerEntity entity = ServerEntities.ContainsKey(entityID) ? ServerEntities[entityID] : null;
+            if (entity == null)
+            {
+                ServerEntities.Add(entityID, entity = new ServerEntity() { ID = entityID, GameModelType = gameModelType, World = world, Updated = true });
+                ServerEntityIDs.Add(entityID);
+            }
+            else
+            {
+                entity.World = world;
+                entity.Updated = true;
+            }
+        }
+
+        private static void SyncServerEntities()
+        {
+            CommandWriter cw = new CommandWriter();
+            while (Active)
+            {
+                bool sendPending = false;
+
+                int entityCount = ServerEntityIDs.Count;
+                for (int i = 0; i < entityCount; i++)
+                {
+                    ServerEntity entity = ServerEntities[ServerEntityIDs[i]];
+                    if (entity.Updated)
+                    {
+                        cw.Reset();
+                        cw.WriteCommand(Commands.UpdateEntity);
+                        cw.WriteData(entity.ID);
+                        cw.WriteData(entity.GameModelType);
+                        cw.WriteMatrix(entity.World);
+                        if (FillBuffer(cw.GetBytes())) sendPending = true;
+                        else
+                        {
+                            FlushBuffer();
+                            FillBuffer(cw.GetBytes());
+                            sendPending = false;
+                        }
+                        entity.Updated = false;
+                    }
+                }
+                if (sendPending) FlushBuffer();
+                Thread.Sleep(1);
+            }
+        }
+
+        private static bool FillBuffer(byte[] data)
+        {
+            if ((BroadcastBufferWritePos + data.Length) > BroadcastBuffer.Length) return false;
+
+            Buffer.BlockCopy(data, 0, BroadcastBuffer, BroadcastBufferWritePos, data.Length);
+            BroadcastBufferWritePos += data.Length;
+            
+            return true;
+        }
+
+        private static void FlushBuffer()
+        {
+            UdpClient.Client.BeginSendTo(BroadcastBuffer, 0, BroadcastBufferWritePos, SocketFlags.None, MulticastEndpoint, _AsyncCallback, _Socket);
+            BroadcastBufferWritePos = 0;
+        }
+
         static Server()
         {
             //BW = new BinaryWriter(new MemoryStream());
             
         }
 
+        private static UdpClient UdpClient;
+        private static IPEndPoint MulticastEndpoint;
+        private static IBroadcaster Broadcaster;
+
         public static void StartServer()
         {
-            new Thread(new ThreadStart(ProcessQueue)).Start();
+            UdpClient = new UdpClient();
+            IPAddress multicastaddress = IPAddress.Parse("239.0.0.222");
+            UdpClient.JoinMulticastGroup(multicastaddress);
+            MulticastEndpoint = new IPEndPoint(multicastaddress, 2222);
+
+            Active = true;
+            new Thread(new ThreadStart(SyncServerEntities)).Start();
+            //new Thread(new ThreadStart(ProcessQueue)).Start();
+            //new Thread(new ThreadStart(ProcessBroadcasterQueue)).Start();
+        }
+
+        public static void StopServer()
+        {
+            Active = false;
+        }
+
+        private static void ProcessBroadcasterQueue()
+        {
+            while (true)
+            {
+                Broadcaster.ProcessBroadcastQueue();
+                Thread.Sleep(1);
+            }
         }
 
         private static DateTime LastDisplay = DateTime.Now;
@@ -27,6 +133,7 @@ namespace SpaceSimLibrary.Networking
         {
             while (true)
             {
+                Broadcaster.Broadcast();
                 lock (BroadcastBufferLock)
                 {
                     if ((DateTime.Now - LastDisplay).TotalSeconds > 1)
@@ -36,7 +143,7 @@ namespace SpaceSimLibrary.Networking
                     }
                     if (BroadcastBufferReadPos != BroadcastBufferWritePos)
                     {
-                        Console.WriteLine("BroadcastBufferReadPos: " + BroadcastBufferReadPos + ", BroadcastBufferWritePos: " + BroadcastBufferWritePos);
+                        //Console.WriteLine("BroadcastBufferReadPos: " + BroadcastBufferReadPos + ", BroadcastBufferWritePos: " + BroadcastBufferWritePos);
                         _BroadcastFunc(BroadcastBuffer, BroadcastBufferReadPos, BroadcastBufferWritePos - BroadcastBufferReadPos);
                         BroadcastBufferReadPos = BroadcastBufferWritePos;
                     }
@@ -66,13 +173,16 @@ namespace SpaceSimLibrary.Networking
         private static IPEndPoint _Endpoint = null;
         private static AsyncCallback _AsyncCallback;
 
+        private static IPAddress _Broadcast2 = null;
+        private static IPEndPoint _Endpoint2 = null;
+
         //private static BinaryWriter BW;
         private static object BroadcastBufferLock = new object();
         private static byte[] BroadcastBuffer = new byte[32768];
         private static int BroadcastBufferWritePos = 0;
         private static int BroadcastBufferReadPos = 0;
 
-        public static void Broadcast(byte[] data)
+        public static bool Broadcast(byte[] data)
         {
             lock (BroadcastBufferLock)
             {
@@ -88,13 +198,18 @@ namespace SpaceSimLibrary.Networking
                     BroadcastBufferWritePos -= BroadcastBufferReadPos;
                     BroadcastBufferReadPos = 0;
 
-                    if ((BroadcastBufferWritePos + data.Length) > BroadcastBuffer.Length) return;
+                    if ((BroadcastBufferWritePos + data.Length) > BroadcastBuffer.Length)
+                    {
+                        //Console.WriteLine("IGNORING BROADCAST");
+                        return false;
+                    }
                 }
 
                 for (int i = 0; i < data.Length; i++)
                 {
                     BroadcastBuffer[BroadcastBufferWritePos++] = data[i];
                 }
+                return true;
             }
         }
 
@@ -105,14 +220,22 @@ namespace SpaceSimLibrary.Networking
 
         private static void _BroadcastFunc(byte[] data, int offset, int size)
         {
+            
+            /*
             if (_Socket == null) _Socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             if (_Broadcast == null) _Broadcast = IPAddress.Parse("192.168.1.255");
             if (_Endpoint == null) _Endpoint = new IPEndPoint(_Broadcast, 12345);
+            if (_Broadcast2 == null) _Broadcast2 = IPAddress.Parse("192.168.1.255");
+            if (_Endpoint2 == null) _Endpoint2 = new IPEndPoint(_Broadcast, 12346);
             if (_AsyncCallback == null) _AsyncCallback = new AsyncCallback(SendCallback);
 
             //byte[] sendbuf = Encoding.ASCII.GetBytes(data);
             //_Socket.SendTo(data, 0, data.Length, SocketFlags.None, _Endpoint);
             _Socket.BeginSendTo(data, offset, size, SocketFlags.None, _Endpoint, _AsyncCallback, _Socket);
+            _Socket.BeginSendTo(data, offset, size, SocketFlags.None, _Endpoint2, _AsyncCallback, _Socket);
+             */
+
+            UdpClient.Client.BeginSendTo(data, offset, size, SocketFlags.None, MulticastEndpoint, _AsyncCallback, _Socket);
         }
 
         public static byte[] BuildCommand(Commands cmd, params object [] parameters)

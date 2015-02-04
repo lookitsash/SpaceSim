@@ -20,16 +20,19 @@ namespace SpaceSim
             ConsoleWindow.Log("Welcome to my SpaceSim game in development.");
             ConsoleWindow.LogTimestamp = true;
 
-            SpaceSimLibrary.Networking.Server.StartServer();
-
-            using (SpaceSimGame game = new SpaceSimGame(GameDisplayType.Cockpit))
+            using (SpaceGame game = new SpaceGame())
             {
-                //Thread thread = new Thread(new ParameterizedThreadStart(LaunchGame));
-                //thread.IsBackground = false;
-                //thread.Start(game);
-
+                SpaceSimLibrary.Networking.Server.StartServer();
                 game.Run();
             }
+
+            /*
+            using (SpaceSimGame game = new SpaceSimGame(GameDisplayType.Cockpit))
+            {
+                SpaceSimLibrary.Networking.Server.StartServer();
+                game.Run();
+            }
+             */
             /*
             List<ManualResetEvent> manualEvents = new List<ManualResetEvent>();
             manualEvents.Add(SpawnThread(GameDisplayType.Cockpit));

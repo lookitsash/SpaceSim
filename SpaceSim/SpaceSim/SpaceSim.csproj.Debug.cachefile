@@ -17,7 +17,6 @@ Content\Models\VPblack.xnb
 Content\Models\earth.xnb
 Content\Models\Ship.xnb
 Content\Models\cube.xnb
-Content\Models\asteroid.xnb
 Content\Models\Laser.xnb
 Content\Models\moon.xnb
 Content\Models\Shuttle.xnb
@@ -37,8 +36,14 @@ Content\GaussianBlur.xnb
 Content\Effects\Blur.xnb
 Content\GlowEffect.xnb
 Content\LightingEffect.xnb
+Content\InstancedModel.xnb
 Content\Fonts\Font1.xnb
 Content\Models\ShipDiffuse_0.xnb
 Content\Models\MoonMap2_2500x1250_0.xnb
 Content\textures\Probe_col_0.xnb
 Content\Models\VPblack_0.xnb
+Content\Models\InstancedModel.xnb
+Content\Models\asteroid.xnb
+Content\Models\Cats.xnb
+Content\Models\cat.xnb
+Content\Models\cat_0.xnb

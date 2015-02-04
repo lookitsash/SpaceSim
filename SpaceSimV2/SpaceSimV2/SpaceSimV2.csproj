@@ -119,14 +119,14 @@
     <Content Include="GameThumbnail.png" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\SpaceSimLibraryContent\SpaceSimLibraryContent.contentproj">
+      <Project>{1787A48C-E9FA-40D8-AFDD-BC470B144A65}</Project>
+      <Name>SpaceSimLibraryContent</Name>
+      <XnaReferenceType>Content</XnaReferenceType>
+    </ProjectReference>
     <ProjectReference Include="..\..\SpaceSimLibrary\SpaceSimLibrary.csproj">
       <Project>{5F4B76D3-E1B0-43C3-91A8-E815C5E6B729}</Project>
       <Name>SpaceSimLibrary</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SpaceSim\SpaceSimContent\SpaceSimContent.contentproj">
-      <Project>{1C199763-248D-414F-A400-3077DC867A91}</Project>
-      <Name>SpaceSimContent %28Content%29</Name>
-      <XnaReferenceType>Content</XnaReferenceType>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
