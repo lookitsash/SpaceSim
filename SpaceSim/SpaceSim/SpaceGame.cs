@@ -28,30 +28,23 @@ namespace SpaceSim
         ChaseCamera camera;
         GameEntity cameraTarget;
         Skybox skybox;        
-        //List<GameEntity> gameEntities;
-        Space space;
-        Dictionary<EntityType, List<GameEntity>> gameEntities;
-        Dictionary<EntityType, GameModel> gameModels;
+        GameManager gameManager;
 
-        //temp
-        Matrix[] instanceTransforms;
-        DynamicVertexBuffer instanceVertexBuffer;
-
-        // To store instance transform matrices in a vertex buffer, we use this custom
-        // vertex type which encodes 4x4 matrices as a set of four Vector4 values.
-        static VertexDeclaration instanceVertexDeclaration = new VertexDeclaration
-        (
-            new VertexElement(0, VertexElementFormat.Vector4, VertexElementUsage.BlendWeight, 0),
-            new VertexElement(16, VertexElementFormat.Vector4, VertexElementUsage.BlendWeight, 1),
-            new VertexElement(32, VertexElementFormat.Vector4, VertexElementUsage.BlendWeight, 2),
-            new VertexElement(48, VertexElementFormat.Vector4, VertexElementUsage.BlendWeight, 3)
-        );
+        SpriteFont spriteFont;
+        int framesPerSecond, frames;
+        TimeSpan elapsedTime = TimeSpan.Zero;
+        Vector2 infoFontPos = new Vector2(1.0f, 1.0f);
 
         public SpaceGame()
         {
             graphics = new GraphicsDeviceManager(this);
 
             Content.RootDirectory = "Content";
+
+            gameManager = new GameManager();
+
+            //IsFixedTimeStep = false;
+            //graphics.SynchronizeWithVerticalRetrace = false;
         }
 
         /// <summary>
@@ -80,15 +73,9 @@ namespace SpaceSim
 
             skybox = new Skybox("Textures/Background1", Content);
 
-            gameModels = new Dictionary<EntityType, GameModel>();
-            gameModels.Add(EntityType.Asteroid, new GameModel(Content, "Models/Cats"));
-            //modelAsteroid = Content.Load<Model>("Models/asteroid");
-            //modelLaser = Content.Load<Model>("Models/Laser");
+            spriteFont = Content.Load<SpriteFont>("Fonts/Font1");
 
-            gameEntities = new Dictionary<EntityType, List<GameEntity>>();
-            gameEntities.Add(EntityType.Asteroid, new List<GameEntity>());
-
-            space = new Space();
+            gameManager.RegisterModel(EntityType.Asteroid, new GameModel(GraphicsDevice, Content, "Models/Cats"));
 
             GenerateAsteroids();
         }
@@ -119,7 +106,9 @@ namespace SpaceSim
         {
             UpdateCamera();
 
-            space.Update();
+            gameManager.Update(gameTime);
+
+            UpdateFrameRate(gameTime);
 
             base.Update(gameTime);
         }
@@ -134,8 +123,20 @@ namespace SpaceSim
 
             DrawSkybox(gameTime);
             DrawGameEntities(gameTime);
+            DrawOverlay(gameTime);
 
             base.Draw(gameTime);
+
+            IncrementFrameCounter();
+        }
+
+        private void DrawOverlay(GameTime gameTime)
+        {
+            DepthStencilState ds = graphics.GraphicsDevice.DepthStencilState;
+            spriteBatch.Begin();
+            spriteBatch.DrawString(spriteFont, "FPS: " + framesPerSecond, infoFontPos, Color.Yellow);
+            spriteBatch.End();
+            graphics.GraphicsDevice.DepthStencilState = ds;
         }
 
         private void DrawSkybox(GameTime gameTime)
@@ -150,40 +151,24 @@ namespace SpaceSim
 
         private void DrawGameEntities(GameTime gameTime)
         {
-            List<GameEntity> asteroids = gameEntities[EntityType.Asteroid];
-            Array.Resize(ref instanceTransforms, asteroids.Count);
-
-            for (int i = 0; i < asteroids.Count; i++)
+            foreach (EntityType entityType in gameManager.GetEntityTypes())
             {
-                instanceTransforms[i] = asteroids[i].World;
+                List<GameEntity> entities = gameManager.GetEntitiesByType(entityType);
+                if (entities != null && entities.Count > 0)
+                {
+                    GameModel gameModel = gameManager.GetModel(entityType);
+                    gameModel.SetInstanceTransforms(entities);
+                    DrawModelHardwareInstancing(gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
+                }
             }
-
-            GameModel gameModel = gameModels[EntityType.Asteroid];
-            DrawModelHardwareInstancing(gameModel.Model, gameModel.ModelBones, instanceTransforms, camera.View, camera.Projection);
         }
 
         /// <summary>
         /// Efficiently draws several copies of a piece of geometry using hardware instancing.
         /// </summary>
-        void DrawModelHardwareInstancing(Model model, Matrix[] modelBones,
-                                         Matrix[] instances, Matrix view, Matrix projection)
+        void DrawModelHardwareInstancing(Model model, Matrix[] modelBones, Matrix[] instances, DynamicVertexBuffer instanceVertexBuffer,  Matrix view, Matrix projection)
         {
-            if (instances.Length == 0)
-                return;
-
-            // If we have more instances than room in our vertex buffer, grow it to the neccessary size.
-            if ((instanceVertexBuffer == null) ||
-                (instances.Length > instanceVertexBuffer.VertexCount))
-            {
-                if (instanceVertexBuffer != null)
-                    instanceVertexBuffer.Dispose();
-
-                instanceVertexBuffer = new DynamicVertexBuffer(GraphicsDevice, instanceVertexDeclaration,
-                                                               instances.Length, BufferUsage.WriteOnly);
-            }
-
-            // Transfer the latest instance transform matrices into the instanceVertexBuffer.
-            instanceVertexBuffer.SetData(instances, 0, instances.Length, SetDataOptions.Discard);
+            if (instances.Length == 0) return;
 
             foreach (ModelMesh mesh in model.Meshes)
             {
@@ -225,51 +210,35 @@ namespace SpaceSim
             Program.ConsoleWindow.TimerStart();
             IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
 
-            int maxAsteroids = 10000, maxRange = 2000, asteroidsCreated = 0;
+            int maxAsteroids = 1000, maxRange = 2000, asteroidsCreated = 0;
             float minRadius = 0.5f, maxRadius = 10f;
-            Random r = new Random();
+            Random rnd = new Random();
             for (int i = 0; i < maxAsteroids; i++)
             {
-                float radius = ((float)r.NextDouble() * (maxRadius - minRadius)) + minRadius;
-                Vector3? pos = GetRandomNonCollidingPoint(radius, Vector3.Zero, maxRange, 10, r);
+                float radius = ((float)rnd.NextDouble() * (maxRadius - minRadius)) + minRadius;
+                Vector3? pos = gameManager.GetRandomNonCollidingPoint(radius, Vector3.Zero, maxRange, 10, rnd);
                 if (pos != null)
                 {
                     GameEntity gameEntity = new GameEntity(EntityType.Asteroid, new Sphere(MathConverter.Convert(pos.Value), radius, 1000));
                     gameEntity.SetScale(radius * 5.0f);
-                    //space.Add(gameEntity.PhysicsEntity);
-                    gameEntities[EntityType.Asteroid].Add(gameEntity);
+                    gameManager.RegisterEntity(gameEntity);
 
                     if (cameraTarget == null)
                     {
-                        space.Add(gameEntity.PhysicsEntity);
                         cameraTarget = gameEntity;
 
-                        Random rnd = new Random();
                         gameEntity.PhysicsEntity.AngularDamping = 0;
                         gameEntity.PhysicsEntity.LinearDamping = 0;
                         float xRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
                         float yRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
                         float zRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
                         gameEntity.PhysicsEntity.AngularVelocity = new BEPUutilities.Vector3(xRotRnd, yRotRnd, zRotRnd);
-
                     }
+                    
                     asteroidsCreated++;
                 }
             }
             Program.ConsoleWindow.Log(asteroidsCreated + " asteroids created in " + Program.ConsoleWindow.TimerStop().TotalSeconds + " sec");
-        }
-
-        public Vector3? GetRandomNonCollidingPoint(float requestedPlacementRadius, Vector3 targetAreaCenter, int targetAreaRadius, int maxPlacementAttempts, Random r)
-        {
-            IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
-            for (int j = 0; j < maxPlacementAttempts; j++)
-            {
-                BEPUutilities.Vector3 pos = new BEPUutilities.Vector3(targetAreaCenter.X + r.Next(-targetAreaRadius / 2, targetAreaRadius / 2), r.Next(-targetAreaRadius / 2, targetAreaRadius / 2), r.Next(-targetAreaRadius / 2, targetAreaRadius / 2));
-                space.BroadPhase.QueryAccelerator.GetEntries(new BEPUutilities.BoundingBox(new BEPUutilities.Vector3(pos.X - requestedPlacementRadius, pos.Y - requestedPlacementRadius, pos.Z - requestedPlacementRadius), new BEPUutilities.Vector3(pos.X + requestedPlacementRadius, pos.Y + requestedPlacementRadius, pos.Z + requestedPlacementRadius)), overlaps);
-                //if (overlaps.Count == 0)
-                return MathConverter.Convert(pos);
-            }
-            return null;
         }
 
         private void UpdateCamera()
@@ -294,7 +263,7 @@ namespace SpaceSim
 
             // Set camera perspective
             camera.NearPlaneDistance = 0.1f;
-            camera.FarPlaneDistance = 100000.0f;
+            camera.FarPlaneDistance = 10000.0f;
 
             // Set the camera aspect ratio
             // This must be done after the class to base.Initalize() which will
@@ -302,6 +271,23 @@ namespace SpaceSim
             camera.AspectRatio = (float)graphics.GraphicsDevice.Viewport.Width / graphics.GraphicsDevice.Viewport.Height;
 
             UpdateCamera();
+        }
+
+        private void UpdateFrameRate(GameTime gameTime)
+        {
+            elapsedTime += gameTime.ElapsedGameTime;
+
+            if (elapsedTime > TimeSpan.FromSeconds(1))
+            {
+                elapsedTime -= TimeSpan.FromSeconds(1);
+                framesPerSecond = frames;
+                frames = 0;
+            }
+        }
+
+        private void IncrementFrameCounter()
+        {
+            ++frames;
         }
     }
 }

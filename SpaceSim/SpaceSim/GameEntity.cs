@@ -15,6 +15,7 @@ namespace SpaceSim
 
         public int ID;
         public Entity PhysicsEntity;
+        public EntityType EntityType;
 
         public Matrix World
         {
@@ -29,8 +30,11 @@ namespace SpaceSim
         public GameEntity(EntityType entityType, Entity physicsEntity)
         {
             ID = ++CURRENT_ID;
+            EntityType = entityType;
             PhysicsEntity = physicsEntity;
             Scale = Matrix.Identity;
+
+            PhysicsEntity.Tag = this;
         }
 
         public void SetScale(float scale)

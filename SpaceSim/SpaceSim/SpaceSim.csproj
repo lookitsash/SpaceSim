@@ -136,6 +136,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="GameEntity.cs" />
+    <Compile Include="GameManager.cs" />
     <Compile Include="GameModel.cs" />
     <Compile Include="OldClasses\BloomComponent.cs" />
     <Compile Include="OldClasses\BloomSettings.cs" />
