@@ -135,9 +135,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GameEntity.cs" />
-    <Compile Include="GameManager.cs" />
-    <Compile Include="GameModel.cs" />
+    <Compile Include="InputManager.cs" />
     <Compile Include="OldClasses\BloomComponent.cs" />
     <Compile Include="OldClasses\BloomSettings.cs" />
     <Compile Include="OldClasses\ChaseCamera.cs" />
@@ -146,6 +144,7 @@
     <Compile Include="OldClasses\Earth.cs" />
     <Compile Include="OldClasses\Entity.cs" />
     <Compile Include="OldClasses\EntityModel.cs" />
+    <Compile Include="ShipEntity.cs" />
     <Compile Include="SpaceGame.cs" />
     <Compile Include="OldClasses\ModelDataExtractor.cs" />
     <Compile Include="ParticleEngine\ParticleEmitter.cs" />

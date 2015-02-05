@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework;
 using BEPUphysics.BroadPhaseEntries;
 using ConversionHelper;
 
-namespace SpaceSim
+namespace SpaceSimLibrary
 {
     public class GameManager
     {
@@ -15,11 +15,15 @@ namespace SpaceSim
         Dictionary<int, GameEntity> GameEntities = new Dictionary<int, GameEntity>();
         Dictionary<EntityType, GameModel> GameModels = new Dictionary<EntityType, GameModel>();
         List<EntityType> EntityTypes = new List<EntityType>();
-        Space Space = new Space();
+        Space Space = null;
 
-        public GameManager()
+        public GameManager(bool physicsEnabled)
         {
-            Space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
+            if (physicsEnabled)
+            {
+                Space = new BEPUphysics.Space();
+                Space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
+            }
         }
 
         public GameEntity RegisterEntity(GameEntity gameEntity)
@@ -31,7 +35,7 @@ namespace SpaceSim
             
                 entityGroup.Add(gameEntity);
                 GameEntities.Add(gameEntity.ID, gameEntity);
-                Space.Add(gameEntity.PhysicsEntity);
+                if (Space != null) Space.Add(gameEntity.PhysicsEntity);
             }
             return gameEntity;
         }
@@ -81,6 +85,8 @@ namespace SpaceSim
 
         public Vector3? GetRandomNonCollidingPoint(float requestedPlacementRadius, Vector3 targetAreaCenter, int targetAreaRadius, int maxPlacementAttempts, Random r)
         {
+            if (Space == null) return null;
+
             for (int j = 0; j < maxPlacementAttempts; j++)
             {
                 IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
@@ -94,7 +100,7 @@ namespace SpaceSim
 
         public void Update(GameTime gameTime)
         {
-            Space.Update();
+            if (Space != null) Space.Update();
         }
     }
 }

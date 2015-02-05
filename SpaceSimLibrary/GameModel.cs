@@ -6,7 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 
-namespace SpaceSim
+namespace SpaceSimLibrary
 {
     public class GameModel
     {
@@ -60,7 +60,7 @@ namespace SpaceSim
             Array.Resize(ref InstanceTransforms, entities.Count);
             for (int i = 0; i < entities.Count; i++)
             {
-                InstanceTransforms[i] = entities[i].World;
+                InstanceTransforms[i] = entities[i].WorldWithScale;
             }
         }
     }

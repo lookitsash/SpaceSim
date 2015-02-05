@@ -29,6 +29,7 @@ namespace SpaceSim
         GameEntity cameraTarget;
         Skybox skybox;        
         GameManager gameManager;
+        InputManager inputManager;
 
         SpriteFont spriteFont;
         int framesPerSecond, frames;
@@ -41,7 +42,7 @@ namespace SpaceSim
 
             Content.RootDirectory = "Content";
 
-            gameManager = new GameManager();
+            gameManager = new GameManager(true);
 
             //IsFixedTimeStep = false;
             //graphics.SynchronizeWithVerticalRetrace = false;
@@ -83,9 +84,11 @@ namespace SpaceSim
             gameManager.RegisterModel(EntityType.Asteroid, new GameModel(GraphicsDevice, Content, "Models/asteroid"));
             gameManager.RegisterModel(EntityType.Player, new GameModel(GraphicsDevice, Content, "Models/Ship"));
 
-            GameEntity playerEntity = new GameEntity(EntityType.Player, new Sphere(new BEPUutilities.Vector3(0, 0, 0), 1, 100));
+            ShipEntity playerEntity = new ShipEntity(new Sphere(new BEPUutilities.Vector3(0, 0, 0), 1, 100));
             playerEntity.SetScale(0.001f);
             cameraTarget = gameManager.RegisterEntity(playerEntity);
+
+            inputManager = new InputManager(this, playerEntity);
 
             GenerateAsteroids();
         }
@@ -117,6 +120,8 @@ namespace SpaceSim
             UpdateCamera();
 
             gameManager.Update(gameTime);
+
+            if (inputManager != null) inputManager.Update(gameTime);
 
             UpdateFrameRate(gameTime);
 
@@ -174,9 +179,9 @@ namespace SpaceSim
                     List<GameEntity> nearbyEntities = new List<GameEntity>();
                     foreach (GameEntity entity in entities)
                     {
-                        if (entity == cameraTarget || Vector3.Distance(camera.Position, entity.World.Translation) <= 1000)
+                        if (entity == cameraTarget || Vector3.Distance(camera.Position, entity.Position) <= 1000)
                         {
-                            SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity.ID, entity.EntityType, entity.World);
+                            SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity.ID, entity.EntityType, entity.World, entity.Scale.M11, entity.Scale.M22, entity.Scale.M33);
                             nearbyEntities.Add(entity);
                         }
                     }
@@ -185,47 +190,7 @@ namespace SpaceSim
                     {
                         GameModel gameModel = gameManager.GetModel(entityType);
                         gameModel.SetInstanceTransforms(nearbyEntities);
-                        DrawModelHardwareInstancing(gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Efficiently draws several copies of a piece of geometry using hardware instancing.
-        /// </summary>
-        void DrawModelHardwareInstancing(Model model, Matrix[] modelBones, Matrix[] instances, DynamicVertexBuffer instanceVertexBuffer,  Matrix view, Matrix projection)
-        {
-            if (instances.Length == 0) return;
-
-            foreach (ModelMesh mesh in model.Meshes)
-            {
-                foreach (ModelMeshPart meshPart in mesh.MeshParts)
-                {
-                    // Tell the GPU to read from both the model vertex buffer plus our instanceVertexBuffer.
-                    GraphicsDevice.SetVertexBuffers(
-                        new VertexBufferBinding(meshPart.VertexBuffer, meshPart.VertexOffset, 0),
-                        new VertexBufferBinding(instanceVertexBuffer, 0, 1)
-                    );
-
-                    GraphicsDevice.Indices = meshPart.IndexBuffer;
-
-                    // Set up the instance rendering effect.
-                    Effect effect = meshPart.Effect;
-                    effect.CurrentTechnique = effect.Techniques["HardwareInstancing"];
-
-                    effect.Parameters["World"].SetValue(modelBones[mesh.ParentBone.Index]);
-                    effect.Parameters["View"].SetValue(view);
-                    effect.Parameters["Projection"].SetValue(projection);
-
-                    // Draw all the instance copies in a single call.
-                    foreach (EffectPass pass in effect.CurrentTechnique.Passes)
-                    {
-                        pass.Apply();
-
-                        GraphicsDevice.DrawInstancedPrimitives(PrimitiveType.TriangleList, 0, 0,
-                                                               meshPart.NumVertices, meshPart.StartIndex,
-                                                               meshPart.PrimitiveCount, instances.Length);
+                        Utilities.DrawModelHardwareInstancing(GraphicsDevice, gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
                     }
                 }
             }
@@ -267,9 +232,9 @@ namespace SpaceSim
         {
             if (cameraTarget != null)
             {
-                camera.ChasePosition = MathConverter.Convert(cameraTarget.PhysicsEntity.WorldTransform.Translation);
-                camera.ChaseDirection = MathConverter.Convert(cameraTarget.PhysicsEntity.WorldTransform.Forward);
-                camera.Up = MathConverter.Convert(cameraTarget.PhysicsEntity.WorldTransform.Up);
+                camera.ChasePosition = cameraTarget.Position;
+                camera.ChaseDirection = cameraTarget.World.Forward;
+                camera.Up = cameraTarget.World.Up;
             }
             camera.Reset();
         }

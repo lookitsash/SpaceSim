@@ -15,26 +15,32 @@ namespace SpaceSimLibrary.Networking
         public int ID;
         public EntityType EntityType;
         public Matrix World;
+        public float ScaleX, ScaleY, ScaleZ;
         public bool Updated;
     }
 
     public class Server
     {
+        //static byte[] BroadcastBuffer = new byte[32768]; // Large udp packets results in many losses over network
+        static byte[] BroadcastBuffer = new byte[1024];
         static bool Active = false;
         static Dictionary<int, ServerEntity> ServerEntities = new Dictionary<int, ServerEntity>();
         static List<int> ServerEntityIDs = new List<int>();
 
-        public static void UpdateServerEntity(int entityID, EntityType entityType, Matrix world)
+        public static void UpdateServerEntity(int entityID, EntityType entityType, Matrix world, float scaleX, float scaleY, float scaleZ)
         {
             ServerEntity entity = ServerEntities.ContainsKey(entityID) ? ServerEntities[entityID] : null;
             if (entity == null)
             {
-                ServerEntities.Add(entityID, entity = new ServerEntity() { ID = entityID, EntityType = entityType, World = world, Updated = true });
+                ServerEntities.Add(entityID, entity = new ServerEntity() { ID = entityID, EntityType = entityType, World = world, ScaleX = scaleX, ScaleY = scaleY, ScaleZ = scaleZ, Updated = true });
                 ServerEntityIDs.Add(entityID);
             }
             else
             {
                 entity.World = world;
+                entity.ScaleX = scaleX;
+                entity.ScaleY = scaleY;
+                entity.ScaleZ = scaleZ;
                 entity.Updated = true;
             }
         }
@@ -57,6 +63,9 @@ namespace SpaceSimLibrary.Networking
                         cw.WriteData(entity.ID);
                         cw.WriteData((byte)entity.EntityType);
                         cw.WriteMatrix(entity.World);
+                        cw.WriteData(entity.ScaleX);
+                        cw.WriteData(entity.ScaleY);
+                        cw.WriteData(entity.ScaleZ);
                         if (FillBuffer(cw.GetBytes())) sendPending = true;
                         else
                         {
@@ -175,7 +184,6 @@ namespace SpaceSimLibrary.Networking
 
         //private static BinaryWriter BW;
         private static object BroadcastBufferLock = new object();
-        private static byte[] BroadcastBuffer = new byte[32768];
         private static int BroadcastBufferWritePos = 0;
         private static int BroadcastBufferReadPos = 0;
 

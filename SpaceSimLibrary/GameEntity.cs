@@ -7,7 +7,7 @@ using BEPUphysics.Entities;
 using Microsoft.Xna.Framework;
 using ConversionHelper;
 
-namespace SpaceSim
+namespace SpaceSimLibrary
 {
     public class GameEntity
     {
@@ -18,11 +18,33 @@ namespace SpaceSim
         public EntityType EntityType;
         public Matrix Scale;
 
+        private Matrix _World = Matrix.Identity;
         public Matrix World
         {
             get
             {
-                return Scale * MathConverter.Convert(PhysicsEntity.WorldTransform);
+                if (PhysicsEntity == null) return _World;
+                else return MathConverter.Convert(PhysicsEntity.WorldTransform);
+            }
+            set
+            {
+                _World = value;
+            }
+        }
+
+        public Matrix WorldWithScale
+        {
+            get
+            {
+                return Scale * World;
+            }
+        }
+
+        public Vector3 Position
+        {
+            get
+            {
+                return World.Translation;
             }
         }
 
@@ -33,7 +55,14 @@ namespace SpaceSim
             PhysicsEntity = physicsEntity;
             Scale = Matrix.Identity;
 
-            PhysicsEntity.Tag = this;
+            if (PhysicsEntity != null) PhysicsEntity.Tag = this;
+        }
+
+        public GameEntity(EntityType entityType, int id, Matrix world, float scaleX, float scaleY, float scaleZ) : this(entityType, null)
+        {
+            ID = id;
+            World = world;
+            SetScale(scaleX, scaleY, scaleZ);
         }
 
         public void SetScale(float scale)

@@ -87,7 +87,7 @@
     <Compile Include="Models\asteroid.fbx">
       <Name>asteroid</Name>
       <Importer>FbxImporter</Importer>
-      <Processor>ModelProcessor</Processor>
+      <Processor>InstancedModelProcessor</Processor>
     </Compile>
     <Compile Include="Models\Laser.FBX">
       <Name>Laser</Name>
@@ -145,6 +145,19 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\InstancedModelPipeline\InstancedModelPipeline.csproj">
+      <Project>{42476962-22F6-46B7-9C1D-BE742D7F8FD1}</Project>
+      <Name>InstancedModelPipeline</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Models\InstancedModel.fx">
+      <Name>InstancedModel</Name>
+      <Importer>EffectImporter</Importer>
+      <Processor>EffectProcessor</Processor>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\XNA Game Studio\$(XnaFrameworkVersion)\Microsoft.Xna.GameStudio.ContentPipeline.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

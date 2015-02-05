@@ -22,11 +22,11 @@ namespace SpaceSimV2
         SpriteBatch spriteBatch;
         Client client;
         ChaseCamera camera = null;
+        GameEntity cameraTarget;
         Skybox skybox;
         CameraDirection CameraDirection;
         int ClientPort;
-
-        public Model modelAsteroid, modelLaser;
+        GameManager gameManager;
 
         public SpaceSimGame(CameraDirection cameraDirection, int clientPort)
         {
@@ -35,6 +35,8 @@ namespace SpaceSimV2
             ClientPort = clientPort;
 
             Content.RootDirectory = "SpaceSimLibraryContent";
+
+            gameManager = new GameManager(false);
         }
 
         /// <summary>
@@ -48,30 +50,13 @@ namespace SpaceSimV2
             // TODO: Add your initialization logic here
 
             base.Initialize();
+            //TargetElapsedTime = new TimeSpan(0, 0, 0, 0, 60); //new TimeSpan(TimeSpan.TicksPerSecond / 60);
+            //graphics.SynchronizeWithVerticalRetrace = false;
 
-            camera = new ChaseCamera();
+            graphics.PreferredBackBufferWidth = GraphicsDevice.DisplayMode.Width / 2;
+            graphics.PreferredBackBufferHeight = GraphicsDevice.DisplayMode.Height / 2;
 
-            // Set the camera offsets
-            camera.DesiredPositionOffset = new Vector3(0.0f, 1.0f, 3.5f);
-            //camera.DesiredPositionOffset = new Vector3(100.0f, 100.0f, 350.0f);
-            camera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
-
-            // Set camera perspective
-            camera.NearPlaneDistance = 0.1f;
-            camera.FarPlaneDistance = 100000.0f;
-
-
-            // Set the camera aspect ratio
-            // This must be done after the class to base.Initalize() which will
-            // initialize the graphics device.
-            camera.AspectRatio = (float)graphics.GraphicsDevice.Viewport.Width / graphics.GraphicsDevice.Viewport.Height;
-
-            // Perform an inital reset on the camera so that it starts at the resting
-            // position. If we don't do this, the camera will start at the origin and
-            // race across the world to get behind the chased object.
-            // This is performed here because the aspect ratio is needed by Reset.
-            UpdateCameraChaseTarget();
-            camera.Reset();
+            InitializeCamera();
         }
 
         /// <summary>
@@ -85,8 +70,8 @@ namespace SpaceSimV2
 
             skybox = new Skybox("Textures/Background1", Content);
 
-            modelAsteroid = Content.Load<Model>("Models/asteroid");
-            modelLaser = Content.Load<Model>("Models/Laser");
+            gameManager.RegisterModel(EntityType.Asteroid, new GameModel(GraphicsDevice, Content, "Models/asteroid"));
+            //gameManager.RegisterModel(EntityType.Player, new GameModel(GraphicsDevice, Content, "Models/Ship"));
 
             client = new Client(ClientPort);
             client.OnCommandReceived += new SpaceSimLibrary.Networking.CommandReceived(CommandReceived);
@@ -103,107 +88,101 @@ namespace SpaceSimV2
             // TODO: Unload any non ContentManager content here
         }
 
-        /// <summary>
-        /// Allows the game to run logic such as updating the world,
-        /// checking for collisions, gathering input, and playing audio.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
-            UpdateCameraChaseTarget();
-            camera.Reset();
+            UpdateCamera();
+
+            gameManager.Update(gameTime);
+
+            //UpdateFrameRate(gameTime);
 
             base.Update(gameTime);
         }
 
-        /// <summary>
-        /// This is called when the game should draw itself.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.Black);
 
+            DrawSkybox(gameTime);
+            DrawGameEntities(gameTime);
+
+
+            base.Draw(gameTime);
+
+            //DrawOverlay(gameTime);
+
+            //IncrementFrameCounter();
+        }
+
+        private void DrawSkybox(GameTime gameTime)
+        {
             RasterizerState originalRasterizerState = graphics.GraphicsDevice.RasterizerState;
             RasterizerState rasterizerState = new RasterizerState();
             rasterizerState.CullMode = CullMode.None;
             graphics.GraphicsDevice.RasterizerState = rasterizerState;
             skybox.Draw(camera.View, camera.Projection, camera.Position);
             graphics.GraphicsDevice.RasterizerState = originalRasterizerState;
-
-            int entityCount = ServerEntityIDs.Count;
-            for (int i = 0; i < entityCount; i++)
-            {
-                if (i >= ServerEntityIDs.Count) break;
-                int entityID = ServerEntityIDs[i];
-
-                if (!ServerEntities.ContainsKey(entityID)) continue;
-                ServerEntity entity = ServerEntities[entityID];
-                if (entity.Model == null || entity.EntityType == EntityType.Player) continue;
-
-                entity.Model.CopyAbsoluteBoneTransformsTo(entity.BoneTransforms);
-                foreach (ModelMesh mesh in entity.Model.Meshes)
-                {
-                    foreach (BasicEffect effect in mesh.Effects)
-                    {
-                        effect.EnableDefaultLighting();
-                        effect.World = entity.BoneTransforms[mesh.ParentBone.Index] * entity.World;
-                        effect.View = camera.View;
-                        effect.Projection = camera.Projection;
-                    }
-                    mesh.Draw();
-                }
-            }
-
-            base.Draw(gameTime);
         }
 
-        private Model GetModel(EntityType entityType)
+        private void DrawGameEntities(GameTime gameTime)
         {
-            if (entityType == EntityType.Asteroid) return modelAsteroid;
-            //else if (entityType == EntityType.Planet) return modelLaser;
-            else return null;
+            lock (gameManager)
+            {
+                foreach (EntityType entityType in gameManager.GetEntityTypes())
+                {
+                    List<GameEntity> entities = gameManager.GetEntitiesByType(entityType);
+                    if (entities != null && entities.Count > 0)
+                    {
+                        List<GameEntity> nearbyEntities = new List<GameEntity>();
+                        foreach (GameEntity entity in entities)
+                        {
+                            if (entity == cameraTarget || Vector3.Distance(camera.Position, entity.Position) <= 1000)
+                            {
+                                //SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity.ID, entity.EntityType, entity.World);
+                                nearbyEntities.Add(entity);
+                            }
+                        }
+
+                        if (nearbyEntities.Count > 0)
+                        {
+                            GameModel gameModel = gameManager.GetModel(entityType);
+                            gameModel.SetInstanceTransforms(nearbyEntities);
+                            Utilities.DrawModelHardwareInstancing(GraphicsDevice, gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
+                        }
+                    }
+                }
+            }
         }
 
         private void CommandReceived(CommandReader cr)
         {
             Commands cmd = cr.ReadCommand();
-            /*            
-            if (cmd == Commands.RegisterEntity)
-            {
-                int entityID = cr.ReadData<int>();
-                GameModelType gameModelType = (GameModelType)cr.ReadData<byte>();
-                Matrix modelTransform = cr.ReadMatrix();
-                Matrix world = cr.ReadMatrix();
-                Model model = modelAsteroid;
-                //Console.WriteLine("RegisterEntity " + entityID + "," + gameModelType.ToString());
-                if (gameModelType == GameModelType.Ship || gameModelType == GameModelType.Asteroid || gameModelType == GameModelType.Projectile)
-                {
-                    if (gameModelType == GameModelType.Projectile) model = modelLaser;
-                    if (!ServerEntities.ContainsKey(entityID))
-                    {
-                        ServerEntities.Add(entityID, new ServerEntity() { ID = entityID, GameModelType = gameModelType, ModelTransform = modelTransform, World = world, Model = model, BoneTransforms = new Matrix[model.Bones.Count] });
-                        ServerEntityIDs.Add(entityID);
-                        if (gameModelType == GameModelType.Ship) CameraTarget = ServerEntities[entityID];
-                    }
-                }
-            }
-            else if (cmd == Commands.RemoveEntity)
-            {
-                int entityID = cr.ReadData<int>();
-                if (ServerEntities.ContainsKey(entityID))
-                {
-                    ServerEntities.Remove(entityID);
-                    ServerEntityIDs.Remove(entityID);
-                }
-            }
-            */
+            
             if (cmd == Commands.UpdateEntity)
             {
                 int entityID = cr.ReadData<int>();
                 EntityType entityType = (EntityType)cr.ReadData<byte>();
-                
                 Matrix world = cr.ReadMatrix();
+                float scaleX = cr.ReadData<float>();
+                float scaleY = cr.ReadData<float>();
+                float scaleZ = cr.ReadData<float>();
+
+                GameEntity entity = gameManager.GetEntity(entityID);
+                if (entity == null)
+                {
+                    lock (gameManager)
+                    {
+                        gameManager.RegisterEntity(new GameEntity(entityType, entityID, world, scaleX, scaleY, scaleZ));
+                    }
+                }
+                else
+                {
+                    entity.World = world;
+                    entity.SetScale(scaleX, scaleY, scaleZ);
+                }
+
+                if (entityType == EntityType.Player) cameraTarget = entity;
+                /*
                 ServerEntity entity = ServerEntities.ContainsKey(entityID) ? ServerEntities[entityID] : null;
                 if (entity == null)
                 {
@@ -214,64 +193,44 @@ namespace SpaceSimV2
                     if (entityType == EntityType.Player) CameraTarget = entity;
                 }
                 else entity.World = world;
-
-                /*
-                if (ServerEntities.ContainsKey(entityID))
-                {
-                    ServerEntity entity = ServerEntities[entityID];
-                    if (entity.GameModelType == GameModelType.Projectile)
-                    {
-                        //Console.WriteLine(world.Translation.X + "," + world.Translation.Y + "," + world.Translation.Z);
-                    }
-                    entity.World = world;
-                }
-                else
-                {
-                    if (!missingEntityIDs.Contains(entityID))
-                    {
-                        Console.WriteLine("entityID " + entityID + " not found");
-                        missingEntityIDs.Add(entityID);
-                    }
-                }
                  */
             }
         }
-        private List<int> missingEntityIDs = new List<int>();
 
-        private Dictionary<int,ServerEntity> ServerEntities = new Dictionary<int,ServerEntity>();
-        private List<int> ServerEntityIDs = new List<int>();
-        private ServerEntity CameraTarget;
-
-        private void UpdateCameraChaseTarget()
+        private void UpdateCamera()
         {
-            if (CameraTarget != null)
+            if (cameraTarget != null)
             {
-                camera.ChasePosition = CameraTarget.World.Translation;
-                if (CameraDirection == SpaceSimV2.CameraDirection.Forward) camera.ChaseDirection = CameraTarget.World.Forward;
-                else if (CameraDirection == SpaceSimV2.CameraDirection.Backward) camera.ChaseDirection = CameraTarget.World.Backward;
-                else if (CameraDirection == SpaceSimV2.CameraDirection.Left) camera.ChaseDirection = CameraTarget.World.Left;
-                else if (CameraDirection == SpaceSimV2.CameraDirection.Right) camera.ChaseDirection = CameraTarget.World.Right;
-                camera.Up = CameraTarget.World.Up;
+                camera.ChasePosition = cameraTarget.Position;
+                if (CameraDirection == SpaceSimV2.CameraDirection.Forward) camera.ChaseDirection = cameraTarget.World.Forward;
+                else if (CameraDirection == SpaceSimV2.CameraDirection.Backward) camera.ChaseDirection = cameraTarget.World.Backward;
+                else if (CameraDirection == SpaceSimV2.CameraDirection.Left) camera.ChaseDirection = cameraTarget.World.Left;
+                else if (CameraDirection == SpaceSimV2.CameraDirection.Right) camera.ChaseDirection = cameraTarget.World.Right;
+                camera.Up = cameraTarget.World.Up;
             }
+            camera.Reset();
         }
-    }
 
-    public class ServerEntity
-    {
-        public int ID;
-        public EntityType EntityType;
-        public Matrix World;
-        public Model Model;
-        public Matrix[] BoneTransforms;
-    }
+        private void InitializeCamera()
+        {
+            camera = new ChaseCamera();
 
-    public enum GameModelType
-    {
-        Planet,
-        Ship,
-        Asteroid,
-        Projectile,
-        ShipNPC
+            // Set the camera offsets
+            camera.DesiredPositionOffset = new Vector3(0.0f, 1.0f, 3.5f);
+            //camera.DesiredPositionOffset = new Vector3(100.0f, 100.0f, 350.0f);
+            camera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
+
+            // Set camera perspective
+            camera.NearPlaneDistance = 0.1f;
+            camera.FarPlaneDistance = 100000.0f;
+
+            // Set the camera aspect ratio
+            // This must be done after the class to base.Initalize() which will
+            // initialize the graphics device.
+            camera.AspectRatio = (float)graphics.GraphicsDevice.Viewport.Width / graphics.GraphicsDevice.Viewport.Height;
+
+            UpdateCamera();
+        }
     }
 
     public enum CameraDirection

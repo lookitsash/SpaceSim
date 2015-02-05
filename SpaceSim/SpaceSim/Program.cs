@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 
 namespace SpaceSim
 {
@@ -13,7 +14,6 @@ namespace SpaceSim
         /// </summary>
         static void Main(string[] args)
         {
-
             //(ConsoleWindow = new ConsoleWindow()).Show();
             //ConsoleWindow.OnInput += new ConsoleWindow.ConsoleInputEventHandler(OnConsoleInput);
 
