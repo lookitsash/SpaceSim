@@ -19,6 +19,7 @@ namespace SpaceSim
 
         public GameManager()
         {
+            Space.ForceUpdater.Gravity = new BEPUutilities.Vector3(0, 0, 0);
         }
 
         public GameEntity RegisterEntity(GameEntity gameEntity)
@@ -80,9 +81,9 @@ namespace SpaceSim
 
         public Vector3? GetRandomNonCollidingPoint(float requestedPlacementRadius, Vector3 targetAreaCenter, int targetAreaRadius, int maxPlacementAttempts, Random r)
         {
-            IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
             for (int j = 0; j < maxPlacementAttempts; j++)
             {
+                IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
                 BEPUutilities.Vector3 pos = new BEPUutilities.Vector3(targetAreaCenter.X + r.Next(-targetAreaRadius / 2, targetAreaRadius / 2), r.Next(-targetAreaRadius / 2, targetAreaRadius / 2), r.Next(-targetAreaRadius / 2, targetAreaRadius / 2));
                 Space.BroadPhase.QueryAccelerator.GetEntries(new BEPUutilities.BoundingBox(new BEPUutilities.Vector3(pos.X - requestedPlacementRadius, pos.Y - requestedPlacementRadius, pos.Z - requestedPlacementRadius), new BEPUutilities.Vector3(pos.X + requestedPlacementRadius, pos.Y + requestedPlacementRadius, pos.Z + requestedPlacementRadius)), overlaps);
                 //if (overlaps.Count == 0)

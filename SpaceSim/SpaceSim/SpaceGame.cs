@@ -58,6 +58,11 @@ namespace SpaceSim
             // TODO: Add your initialization logic here
 
             base.Initialize();
+            //TargetElapsedTime = new TimeSpan(0, 0, 0, 0, 60); //new TimeSpan(TimeSpan.TicksPerSecond / 60);
+            //graphics.SynchronizeWithVerticalRetrace = false;
+
+            graphics.PreferredBackBufferWidth = GraphicsDevice.DisplayMode.Width / 2;
+            graphics.PreferredBackBufferHeight = GraphicsDevice.DisplayMode.Height / 2;
 
             InitializeCamera();
         }
@@ -75,7 +80,12 @@ namespace SpaceSim
 
             spriteFont = Content.Load<SpriteFont>("Fonts/Font1");
 
-            gameManager.RegisterModel(EntityType.Asteroid, new GameModel(GraphicsDevice, Content, "Models/Cats"));
+            gameManager.RegisterModel(EntityType.Asteroid, new GameModel(GraphicsDevice, Content, "Models/asteroid"));
+            gameManager.RegisterModel(EntityType.Player, new GameModel(GraphicsDevice, Content, "Models/Ship"));
+
+            GameEntity playerEntity = new GameEntity(EntityType.Player, new Sphere(new BEPUutilities.Vector3(0, 0, 0), 1, 100));
+            playerEntity.SetScale(0.001f);
+            cameraTarget = gameManager.RegisterEntity(playerEntity);
 
             GenerateAsteroids();
         }
@@ -120,12 +130,14 @@ namespace SpaceSim
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.Black);
-
+            
             DrawSkybox(gameTime);
             DrawGameEntities(gameTime);
-            DrawOverlay(gameTime);
+            
 
             base.Draw(gameTime);
+
+            DrawOverlay(gameTime);
 
             IncrementFrameCounter();
         }
@@ -133,10 +145,13 @@ namespace SpaceSim
         private void DrawOverlay(GameTime gameTime)
         {
             DepthStencilState ds = graphics.GraphicsDevice.DepthStencilState;
-            spriteBatch.Begin();
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
             spriteBatch.DrawString(spriteFont, "FPS: " + framesPerSecond, infoFontPos, Color.Yellow);
             spriteBatch.End();
             graphics.GraphicsDevice.DepthStencilState = ds;
+
+            GraphicsDevice.BlendState = BlendState.Opaque;
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         }
 
         private void DrawSkybox(GameTime gameTime)
@@ -156,9 +171,22 @@ namespace SpaceSim
                 List<GameEntity> entities = gameManager.GetEntitiesByType(entityType);
                 if (entities != null && entities.Count > 0)
                 {
-                    GameModel gameModel = gameManager.GetModel(entityType);
-                    gameModel.SetInstanceTransforms(entities);
-                    DrawModelHardwareInstancing(gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
+                    List<GameEntity> nearbyEntities = new List<GameEntity>();
+                    foreach (GameEntity entity in entities)
+                    {
+                        if (entity == cameraTarget || Vector3.Distance(camera.Position, entity.World.Translation) <= 1000)
+                        {
+                            SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity.ID, entity.EntityType, entity.World);
+                            nearbyEntities.Add(entity);
+                        }
+                    }
+
+                    if (nearbyEntities.Count > 0)
+                    {
+                        GameModel gameModel = gameManager.GetModel(entityType);
+                        gameModel.SetInstanceTransforms(nearbyEntities);
+                        DrawModelHardwareInstancing(gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
+                    }
                 }
             }
         }
@@ -184,7 +212,6 @@ namespace SpaceSim
 
                     // Set up the instance rendering effect.
                     Effect effect = meshPart.Effect;
-
                     effect.CurrentTechnique = effect.Techniques["HardwareInstancing"];
 
                     effect.Parameters["World"].SetValue(modelBones[mesh.ParentBone.Index]);
@@ -206,12 +233,11 @@ namespace SpaceSim
 
         private void GenerateAsteroids()
         {
-            Program.ConsoleWindow.Log("Generating asteroids...");
-            Program.ConsoleWindow.TimerStart();
-            IList<BroadPhaseEntry> overlaps = new List<BroadPhaseEntry>();
+            //Program.ConsoleWindow.Log("Generating asteroids...");
+            //Program.ConsoleWindow.TimerStart();
 
             int maxAsteroids = 1000, maxRange = 2000, asteroidsCreated = 0;
-            float minRadius = 0.5f, maxRadius = 10f;
+            float minRadius = 0.1f, maxRadius = 10f;
             Random rnd = new Random();
             for (int i = 0; i < maxAsteroids; i++)
             {
@@ -220,34 +246,30 @@ namespace SpaceSim
                 if (pos != null)
                 {
                     GameEntity gameEntity = new GameEntity(EntityType.Asteroid, new Sphere(MathConverter.Convert(pos.Value), radius, 1000));
-                    gameEntity.SetScale(radius * 5.0f);
+                    gameEntity.SetScale(radius * 1f);
+                    //gameEntity.SetScale(0.5f);
                     gameManager.RegisterEntity(gameEntity);
 
-                    if (cameraTarget == null)
-                    {
-                        cameraTarget = gameEntity;
-
-                        gameEntity.PhysicsEntity.AngularDamping = 0;
-                        gameEntity.PhysicsEntity.LinearDamping = 0;
-                        float xRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
-                        float yRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
-                        float zRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
-                        gameEntity.PhysicsEntity.AngularVelocity = new BEPUutilities.Vector3(xRotRnd, yRotRnd, zRotRnd);
-                    }
+                    gameEntity.PhysicsEntity.AngularDamping = 0;
+                    gameEntity.PhysicsEntity.LinearDamping = 0;
+                    float xRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
+                    float yRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
+                    float zRotRnd = ((float)rnd.NextDouble() * (float)(rnd.Next(1, 3) == 1 ? 1 : -1));
+                    gameEntity.PhysicsEntity.AngularVelocity = new BEPUutilities.Vector3(xRotRnd, yRotRnd, zRotRnd);
                     
                     asteroidsCreated++;
                 }
             }
-            Program.ConsoleWindow.Log(asteroidsCreated + " asteroids created in " + Program.ConsoleWindow.TimerStop().TotalSeconds + " sec");
+            //Program.ConsoleWindow.Log(asteroidsCreated + " asteroids created in " + Program.ConsoleWindow.TimerStop().TotalSeconds + " sec");
         }
 
         private void UpdateCamera()
         {
             if (cameraTarget != null)
             {
-                camera.ChasePosition = cameraTarget.World.Translation;
-                camera.ChaseDirection = cameraTarget.World.Forward;
-                camera.Up = cameraTarget.World.Up;
+                camera.ChasePosition = MathConverter.Convert(cameraTarget.PhysicsEntity.WorldTransform.Translation);
+                camera.ChaseDirection = MathConverter.Convert(cameraTarget.PhysicsEntity.WorldTransform.Forward);
+                camera.Up = MathConverter.Convert(cameraTarget.PhysicsEntity.WorldTransform.Up);
             }
             camera.Reset();
         }
@@ -263,7 +285,7 @@ namespace SpaceSim
 
             // Set camera perspective
             camera.NearPlaneDistance = 0.1f;
-            camera.FarPlaneDistance = 10000.0f;
+            camera.FarPlaneDistance = 100000.0f;
 
             // Set the camera aspect ratio
             // This must be done after the class to base.Initalize() which will

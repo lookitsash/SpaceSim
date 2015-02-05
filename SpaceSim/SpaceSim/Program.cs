@@ -13,12 +13,13 @@ namespace SpaceSim
         /// </summary>
         static void Main(string[] args)
         {
-            (ConsoleWindow = new ConsoleWindow()).Show();
-            ConsoleWindow.OnInput += new ConsoleWindow.ConsoleInputEventHandler(OnConsoleInput);
 
-            ConsoleWindow.LogTimestamp = false;
-            ConsoleWindow.Log("Welcome to my SpaceSim game in development.");
-            ConsoleWindow.LogTimestamp = true;
+            //(ConsoleWindow = new ConsoleWindow()).Show();
+            //ConsoleWindow.OnInput += new ConsoleWindow.ConsoleInputEventHandler(OnConsoleInput);
+
+            //ConsoleWindow.LogTimestamp = false;
+            //ConsoleWindow.Log("Welcome to my SpaceSim game in development.");
+            //ConsoleWindow.LogTimestamp = true;
 
             using (SpaceGame game = new SpaceGame())
             {

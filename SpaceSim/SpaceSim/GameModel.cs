@@ -51,6 +51,8 @@ namespace SpaceSim
             Model = content.Load<Model>(modelPath);
             ModelBones = new Matrix[Model.Bones.Count];
             Model.CopyAbsoluteBoneTransformsTo(ModelBones);
+            //Model.Meshes[0].MeshParts[0].Effect.T
+            //Model.Meshes[0].MeshParts[0].
         }
 
         public void SetInstanceTransforms(List<GameEntity> entities)

@@ -134,7 +134,7 @@ namespace SpaceSim
             bool shouldRender = ShouldRender;
             if (shouldRender || GameModelType == SpaceSim.GameModelType.Ship)
             {
-                SpaceSimLibrary.Networking.Server.UpdateServerEntity(ID, (byte)GameModelType, worldMatrix);
+                //SpaceSimLibrary.Networking.Server.UpdateServerEntity(ID, (byte)GameModelType, worldMatrix);
             }
             
             if (shouldRender)

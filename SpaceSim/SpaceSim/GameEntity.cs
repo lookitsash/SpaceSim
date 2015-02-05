@@ -16,6 +16,7 @@ namespace SpaceSim
         public int ID;
         public Entity PhysicsEntity;
         public EntityType EntityType;
+        public Matrix Scale;
 
         public Matrix World
         {
@@ -24,8 +25,6 @@ namespace SpaceSim
                 return Scale * MathConverter.Convert(PhysicsEntity.WorldTransform);
             }
         }
-
-        private Matrix Scale;
 
         public GameEntity(EntityType entityType, Entity physicsEntity)
         {
@@ -44,7 +43,7 @@ namespace SpaceSim
 
         public void SetScale(float x, float y, float z)
         {
-            Scale = Matrix.CreateScale(x, y, z);
+            Matrix.CreateScale(x, y, z, out Scale);
         }
     }
 }

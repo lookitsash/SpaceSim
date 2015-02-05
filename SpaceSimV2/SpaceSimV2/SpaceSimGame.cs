@@ -139,7 +139,7 @@ namespace SpaceSimV2
 
                 if (!ServerEntities.ContainsKey(entityID)) continue;
                 ServerEntity entity = ServerEntities[entityID];
-                if (entity.Model == null || entity.GameModelType == GameModelType.Ship) continue;
+                if (entity.Model == null || entity.EntityType == EntityType.Player) continue;
 
                 entity.Model.CopyAbsoluteBoneTransformsTo(entity.BoneTransforms);
                 foreach (ModelMesh mesh in entity.Model.Meshes)
@@ -158,10 +158,10 @@ namespace SpaceSimV2
             base.Draw(gameTime);
         }
 
-        private Model GetModel(GameModelType modelType)
+        private Model GetModel(EntityType entityType)
         {
-            if (modelType == GameModelType.Asteroid) return modelAsteroid;
-            else if (modelType == GameModelType.Projectile) return modelLaser;
+            if (entityType == EntityType.Asteroid) return modelAsteroid;
+            //else if (entityType == EntityType.Planet) return modelLaser;
             else return null;
         }
 
@@ -201,19 +201,17 @@ namespace SpaceSimV2
             if (cmd == Commands.UpdateEntity)
             {
                 int entityID = cr.ReadData<int>();
-                GameModelType gameModelType = (GameModelType)cr.ReadData<byte>();
-                if (gameModelType == GameModelType.Asteroid)
-                {
-                }
+                EntityType entityType = (EntityType)cr.ReadData<byte>();
+                
                 Matrix world = cr.ReadMatrix();
                 ServerEntity entity = ServerEntities.ContainsKey(entityID) ? ServerEntities[entityID] : null;
                 if (entity == null)
                 {
-                    entity = new ServerEntity() { ID = entityID, GameModelType = gameModelType, World = world, Model = GetModel(gameModelType) };
+                    entity = new ServerEntity() { ID = entityID, EntityType = entityType, World = world, Model = GetModel(entityType) };
                     if (entity.Model != null) entity.BoneTransforms = new Matrix[entity.Model.Bones.Count];
                     ServerEntities.Add(entityID, entity);
                     ServerEntityIDs.Add(entityID);
-                    if (gameModelType == GameModelType.Ship) CameraTarget = entity;
+                    if (entityType == EntityType.Player) CameraTarget = entity;
                 }
                 else entity.World = world;
 
@@ -261,7 +259,7 @@ namespace SpaceSimV2
     public class ServerEntity
     {
         public int ID;
-        public GameModelType GameModelType;
+        public EntityType EntityType;
         public Matrix World;
         public Model Model;
         public Matrix[] BoneTransforms;

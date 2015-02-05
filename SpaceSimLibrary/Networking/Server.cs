@@ -13,7 +13,7 @@ namespace SpaceSimLibrary.Networking
     public class ServerEntity
     {
         public int ID;
-        public byte GameModelType;
+        public EntityType EntityType;
         public Matrix World;
         public bool Updated;
     }
@@ -24,15 +24,12 @@ namespace SpaceSimLibrary.Networking
         static Dictionary<int, ServerEntity> ServerEntities = new Dictionary<int, ServerEntity>();
         static List<int> ServerEntityIDs = new List<int>();
 
-        public static void UpdateServerEntity(int entityID, byte gameModelType, Matrix world)
+        public static void UpdateServerEntity(int entityID, EntityType entityType, Matrix world)
         {
-            if (gameModelType == (byte)2)
-            {
-            }
             ServerEntity entity = ServerEntities.ContainsKey(entityID) ? ServerEntities[entityID] : null;
             if (entity == null)
             {
-                ServerEntities.Add(entityID, entity = new ServerEntity() { ID = entityID, GameModelType = gameModelType, World = world, Updated = true });
+                ServerEntities.Add(entityID, entity = new ServerEntity() { ID = entityID, EntityType = entityType, World = world, Updated = true });
                 ServerEntityIDs.Add(entityID);
             }
             else
@@ -58,7 +55,7 @@ namespace SpaceSimLibrary.Networking
                         cw.Reset();
                         cw.WriteCommand(Commands.UpdateEntity);
                         cw.WriteData(entity.ID);
-                        cw.WriteData(entity.GameModelType);
+                        cw.WriteData((byte)entity.EntityType);
                         cw.WriteMatrix(entity.World);
                         if (FillBuffer(cw.GetBytes())) sendPending = true;
                         else
