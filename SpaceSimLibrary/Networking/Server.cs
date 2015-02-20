@@ -7,16 +7,31 @@ using System.Net.Sockets;
 using System.IO;
 using System.Threading;
 using Microsoft.Xna.Framework;
+using BEPUphysics.Entities.Prefabs;
 
 namespace SpaceSimLibrary.Networking
 {
     public class ServerEntity
     {
-        public int ID;
+        public int ID, SyncInterval = 250;
+        public PhysicsShape PhysicsShape;
         public EntityType EntityType;
         public Matrix World;
-        public float ScaleX, ScaleY, ScaleZ;
+        public Vector3 Scale, AngularVelocity, LinearVelocity;
+        public float AngularDamping, LinearDamping, Radius;
         public bool Updated;
+        
+        private DateTime SyncDate = DateTime.Now;
+
+        public bool ShouldSync
+        {
+            get
+            {
+                return (DateTime.Now - SyncDate).TotalMilliseconds >= SyncInterval;
+            }
+        }
+
+        public void ResetSync() { SyncDate = DateTime.Now; }
     }
 
     public class Server
@@ -27,22 +42,28 @@ namespace SpaceSimLibrary.Networking
         static Dictionary<int, ServerEntity> ServerEntities = new Dictionary<int, ServerEntity>();
         static List<int> ServerEntityIDs = new List<int>();
 
-        public static void UpdateServerEntity(int entityID, EntityType entityType, Matrix world, float scaleX, float scaleY, float scaleZ)
+        public static void UpdateServerEntity(GameEntity gameEntity)
         {
-            ServerEntity entity = ServerEntities.ContainsKey(entityID) ? ServerEntities[entityID] : null;
+            ServerEntity entity = ServerEntities.ContainsKey(gameEntity.ID) ? ServerEntities[gameEntity.ID] : null;
             if (entity == null)
             {
-                ServerEntities.Add(entityID, entity = new ServerEntity() { ID = entityID, EntityType = entityType, World = world, ScaleX = scaleX, ScaleY = scaleY, ScaleZ = scaleZ, Updated = true });
-                ServerEntityIDs.Add(entityID);
+                ServerEntities.Add(gameEntity.ID, entity = new ServerEntity() { ID = gameEntity.ID, EntityType = gameEntity.EntityType, Radius = ((Sphere)gameEntity.PhysicsEntity).Radius });
+                if (gameEntity.EntityType == EntityType.Player) entity.SyncInterval = 10;
+                ServerEntityIDs.Add(gameEntity.ID);
             }
-            else
-            {
-                entity.World = world;
-                entity.ScaleX = scaleX;
-                entity.ScaleY = scaleY;
-                entity.ScaleZ = scaleZ;
-                entity.Updated = true;
-            }
+            entity.World = gameEntity.World;
+            entity.AngularDamping = gameEntity.PhysicsEntity.AngularDamping;
+            entity.LinearDamping = gameEntity.PhysicsEntity.LinearDamping;
+            entity.Scale.X = gameEntity.Scale.M11;
+            entity.Scale.Y = gameEntity.Scale.M22;
+            entity.Scale.Z = gameEntity.Scale.M33;            
+            entity.AngularVelocity.X = gameEntity.PhysicsEntity.AngularVelocity.X;
+            entity.AngularVelocity.Y = gameEntity.PhysicsEntity.AngularVelocity.Y;
+            entity.AngularVelocity.Z = gameEntity.PhysicsEntity.AngularVelocity.Z;
+            entity.LinearVelocity.X = gameEntity.PhysicsEntity.LinearVelocity.X;
+            entity.LinearVelocity.Y = gameEntity.PhysicsEntity.LinearVelocity.Y;
+            entity.LinearVelocity.Z = gameEntity.PhysicsEntity.LinearVelocity.Z;            
+            entity.Updated = true;
         }
 
         private static void SyncServerEntities()
@@ -56,16 +77,23 @@ namespace SpaceSimLibrary.Networking
                 for (int i = 0; i < entityCount; i++)
                 {
                     ServerEntity entity = ServerEntities[ServerEntityIDs[i]];
-                    if (entity.Updated)
+                    if (entity.Updated && entity.ShouldSync)
                     {
+                        if (entity.ID == 2)
+                        {
+                        }
                         cw.Reset();
                         cw.WriteCommand(Commands.UpdateEntity);
                         cw.WriteData(entity.ID);
                         cw.WriteData((byte)entity.EntityType);
                         cw.WriteMatrix(entity.World);
-                        cw.WriteData(entity.ScaleX);
-                        cw.WriteData(entity.ScaleY);
-                        cw.WriteData(entity.ScaleZ);
+                        cw.WriteVector3(entity.Scale);
+                        cw.WriteData((byte)entity.PhysicsShape);
+                        cw.WriteData(entity.Radius);
+                        cw.WriteData(entity.AngularDamping);
+                        cw.WriteData(entity.LinearDamping);                        
+                        cw.WriteVector3(entity.AngularVelocity);
+                        cw.WriteVector3(entity.LinearVelocity);
                         if (FillBuffer(cw.GetBytes())) sendPending = true;
                         else
                         {
@@ -74,6 +102,7 @@ namespace SpaceSimLibrary.Networking
                             sendPending = false;
                         }
                         entity.Updated = false;
+                        entity.ResetSync();
                     }
                 }
                 if (sendPending) FlushBuffer();

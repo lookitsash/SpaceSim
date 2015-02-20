@@ -2,5 +2,5 @@
 {
     Player,
     Asteroid,
-    Planet
+    PlanetEarth
 }

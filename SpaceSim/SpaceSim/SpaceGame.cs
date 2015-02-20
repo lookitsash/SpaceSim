@@ -83,10 +83,17 @@ namespace SpaceSim
 
             gameManager.RegisterModel(EntityType.Asteroid, new GameModel(GraphicsDevice, Content, "Models/asteroid"));
             gameManager.RegisterModel(EntityType.Player, new GameModel(GraphicsDevice, Content, "Models/Ship"));
+            gameManager.RegisterModel(EntityType.PlanetEarth, new GameModel(GraphicsDevice, Content, "Models/earth"));
 
-            ShipEntity playerEntity = new ShipEntity(new Sphere(new BEPUutilities.Vector3(0, 0, 0), 1, 100));
+            ShipEntity playerEntity = new ShipEntity(this, new Sphere(new BEPUutilities.Vector3(0, 10, 350), 1, 100));
             playerEntity.SetScale(0.001f);
             cameraTarget = gameManager.RegisterEntity(playerEntity);
+
+            PlanetEntity earthEntity = new PlanetEntity(this, EntityType.PlanetEarth, new Sphere(new BEPUutilities.Vector3(0, 0, -200), 225));
+            earthEntity.SetScale(50f);
+            earthEntity.PhysicsEntity.AngularVelocity = MathConverter.Convert(new Vector3(0.005f, 0.001f, 0.001f));
+            earthEntity.PhysicsEntity.AngularDamping = 0f;
+            gameManager.RegisterEntity(earthEntity);
 
             inputManager = new InputManager(this, playerEntity);
 
@@ -134,17 +141,23 @@ namespace SpaceSim
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.Black);
-            
-            DrawSkybox(gameTime);
-            DrawGameEntities(gameTime);
-            
+            try
+            {
+                GraphicsDevice.Clear(Color.Black);
 
-            base.Draw(gameTime);
+                DrawSkybox(gameTime);
+                DrawGameEntities(gameTime);
 
-            DrawOverlay(gameTime);
 
-            IncrementFrameCounter();
+                base.Draw(gameTime);
+
+                DrawOverlay(gameTime);
+
+                IncrementFrameCounter();
+            }
+            catch (Exception ex)
+            {
+            }
         }
 
         private void DrawOverlay(GameTime gameTime)
@@ -176,20 +189,25 @@ namespace SpaceSim
                 List<GameEntity> entities = gameManager.GetEntitiesByType(entityType);
                 if (entities != null && entities.Count > 0)
                 {
-                    List<GameEntity> nearbyEntities = new List<GameEntity>();
+                    List<GameEntity> instanceDrawingModelEntities = new List<GameEntity>();
                     foreach (GameEntity entity in entities)
                     {
                         if (entity == cameraTarget || Vector3.Distance(camera.Position, entity.Position) <= 1000)
                         {
-                            SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity.ID, entity.EntityType, entity.World, entity.Scale.M11, entity.Scale.M22, entity.Scale.M33);
-                            nearbyEntities.Add(entity);
+                            SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity);
+
+                            if (entity.EntityType == EntityType.PlanetEarth)
+                            {
+                                entity.Draw(camera.View, camera.Projection, camera.Position, gameTime);
+                            }
+                            else instanceDrawingModelEntities.Add(entity);
                         }
                     }
 
-                    if (nearbyEntities.Count > 0)
+                    if (instanceDrawingModelEntities.Count > 0)
                     {
                         GameModel gameModel = gameManager.GetModel(entityType);
-                        gameModel.SetInstanceTransforms(nearbyEntities);
+                        gameModel.SetInstanceTransforms(instanceDrawingModelEntities);
                         Utilities.DrawModelHardwareInstancing(GraphicsDevice, gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
                     }
                 }
@@ -201,7 +219,7 @@ namespace SpaceSim
             //Program.ConsoleWindow.Log("Generating asteroids...");
             //Program.ConsoleWindow.TimerStart();
 
-            int maxAsteroids = 1000, maxRange = 2000, asteroidsCreated = 0;
+            int maxAsteroids = 250, maxRange = 2000, asteroidsCreated = 0;
             float minRadius = 0.1f, maxRadius = 10f;
             Random rnd = new Random();
             for (int i = 0; i < maxAsteroids; i++)
@@ -210,7 +228,7 @@ namespace SpaceSim
                 Vector3? pos = gameManager.GetRandomNonCollidingPoint(radius, Vector3.Zero, maxRange, 10, rnd);
                 if (pos != null)
                 {
-                    GameEntity gameEntity = new GameEntity(EntityType.Asteroid, new Sphere(MathConverter.Convert(pos.Value), radius, 1000));
+                    GameEntity gameEntity = new GameEntity(this, EntityType.Asteroid, new Sphere(MathConverter.Convert(pos.Value), radius, 1000));
                     gameEntity.SetScale(radius * 1f);
                     //gameEntity.SetScale(0.5f);
                     gameManager.RegisterEntity(gameEntity);

@@ -10,6 +10,8 @@ using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
 using SpaceSimLibrary.Networking;
 using SpaceSimLibrary;
+using BEPUphysics.Entities.Prefabs;
+using ConversionHelper;
 
 namespace SpaceSimV2
 {
@@ -36,7 +38,7 @@ namespace SpaceSimV2
 
             Content.RootDirectory = "SpaceSimLibraryContent";
 
-            gameManager = new GameManager(false);
+            gameManager = new GameManager(true);
         }
 
         /// <summary>
@@ -72,6 +74,7 @@ namespace SpaceSimV2
 
             gameManager.RegisterModel(EntityType.Asteroid, new GameModel(GraphicsDevice, Content, "Models/asteroid"));
             //gameManager.RegisterModel(EntityType.Player, new GameModel(GraphicsDevice, Content, "Models/Ship"));
+            gameManager.RegisterModel(EntityType.PlanetEarth, new GameModel(GraphicsDevice, Content, "Models/earth"));
 
             client = new Client(ClientPort);
             client.OnCommandReceived += new SpaceSimLibrary.Networking.CommandReceived(CommandReceived);
@@ -101,14 +104,19 @@ namespace SpaceSimV2
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.Black);
+            try
+            {
+                GraphicsDevice.Clear(Color.Black);
 
-            DrawSkybox(gameTime);
-            DrawGameEntities(gameTime);
+                DrawSkybox(gameTime);
+                DrawGameEntities(gameTime);
 
 
-            base.Draw(gameTime);
-
+                base.Draw(gameTime);
+            }
+            catch (Exception ex)
+            {
+            }
             //DrawOverlay(gameTime);
 
             //IncrementFrameCounter();
@@ -126,29 +134,29 @@ namespace SpaceSimV2
 
         private void DrawGameEntities(GameTime gameTime)
         {
-            lock (gameManager)
+            foreach (EntityType entityType in gameManager.GetEntityTypes())
             {
-                foreach (EntityType entityType in gameManager.GetEntityTypes())
+                List<GameEntity> entities = gameManager.GetEntitiesByType(entityType);
+                if (entities != null && entities.Count > 0)
                 {
-                    List<GameEntity> entities = gameManager.GetEntitiesByType(entityType);
-                    if (entities != null && entities.Count > 0)
+                    List<GameEntity> instanceDrawingModelEntities = new List<GameEntity>();
+                    foreach (GameEntity entity in entities)
                     {
-                        List<GameEntity> nearbyEntities = new List<GameEntity>();
-                        foreach (GameEntity entity in entities)
+                        if (entity == cameraTarget || Vector3.Distance(camera.Position, entity.Position) <= 1000)
                         {
-                            if (entity == cameraTarget || Vector3.Distance(camera.Position, entity.Position) <= 1000)
+                            if (entity.EntityType == EntityType.PlanetEarth)
                             {
-                                //SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity.ID, entity.EntityType, entity.World);
-                                nearbyEntities.Add(entity);
+                                entity.Draw(camera.View, camera.Projection, camera.Position, gameTime);
                             }
+                            else instanceDrawingModelEntities.Add(entity);
                         }
+                    }
 
-                        if (nearbyEntities.Count > 0)
-                        {
-                            GameModel gameModel = gameManager.GetModel(entityType);
-                            gameModel.SetInstanceTransforms(nearbyEntities);
-                            Utilities.DrawModelHardwareInstancing(GraphicsDevice, gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
-                        }
+                    if (instanceDrawingModelEntities.Count > 0)
+                    {
+                        GameModel gameModel = gameManager.GetModel(entityType);
+                        gameModel.SetInstanceTransforms(instanceDrawingModelEntities);
+                        Utilities.DrawModelHardwareInstancing(GraphicsDevice, gameModel.Model, gameModel.ModelBones, gameModel.InstanceTransforms, gameModel.InstanceVertexBuffer, camera.View, camera.Projection);
                     }
                 }
             }
@@ -163,24 +171,39 @@ namespace SpaceSimV2
                 int entityID = cr.ReadData<int>();
                 EntityType entityType = (EntityType)cr.ReadData<byte>();
                 Matrix world = cr.ReadMatrix();
-                float scaleX = cr.ReadData<float>();
-                float scaleY = cr.ReadData<float>();
-                float scaleZ = cr.ReadData<float>();
+                Vector3 scale = cr.ReadVector3();
+
+                PhysicsShape physicsShape = (PhysicsShape)cr.ReadData<byte>();
+                float radius = cr.ReadData<float>();
+                float angularDamping = cr.ReadData<float>();
+                float linearDamping = cr.ReadData<float>();                
+                Vector3 angularVelocity = cr.ReadVector3();
+                Vector3 linearVelocity = cr.ReadVector3();
 
                 GameEntity entity = gameManager.GetEntity(entityID);
                 if (entity == null)
                 {
                     lock (gameManager)
                     {
-                        gameManager.RegisterEntity(new GameEntity(entityType, entityID, world, scaleX, scaleY, scaleZ));
+                        if (entityType == EntityType.PlanetEarth) entity = new PlanetEntity(this, entityType, new Sphere(MathConverter.Convert(world.Translation), radius));
+                        else entity = new GameEntity(this, entityType, new Sphere(MathConverter.Convert(world.Translation), radius));
+                        entity.ID = entityID;
+                        gameManager.RegisterEntity(entity);
                     }
                 }
                 else
                 {
-                    entity.World = world;
-                    entity.SetScale(scaleX, scaleY, scaleZ);
-                }
+                    entity.SetScale(scale.X, scale.Y, scale.Z);
+                    entity.PhysicsEntity.AngularDamping = angularDamping;
+                    entity.PhysicsEntity.LinearDamping = linearDamping;
+                    entity.PhysicsEntity.AngularVelocity = MathConverter.Convert(angularVelocity);
+                    entity.PhysicsEntity.LinearVelocity = MathConverter.Convert(linearVelocity);
+                    entity.PhysicsEntity.WorldTransform = MathConverter.Convert(world);
+                    //BEPUutilities.Matrix.
+                    //entity.World = world;
+                    //entity.PhysicsEntity.WorldTransform = new BEPUutilities.Matrix(world.M11, world.M12, world.M13, world.M14, world.M21, world.M22, world.M23, world.M24, world.M31, world.M32, world.M33, world.M34, world.M41, world.M42, world.M43, world.M44);
 
+                }
                 if (entityType == EntityType.Player) cameraTarget = entity;
                 /*
                 ServerEntity entity = ServerEntities.ContainsKey(entityID) ? ServerEntities[entityID] : null;

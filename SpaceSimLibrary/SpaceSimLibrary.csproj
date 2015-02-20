@@ -112,6 +112,7 @@
     <Compile Include="Networking\Client.cs" />
     <Compile Include="Networking\IBroadcaster.cs" />
     <Compile Include="Networking\Server.cs" />
+    <Compile Include="PlanetEntity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Skybox.cs" />
     <Compile Include="Utilities.cs" />

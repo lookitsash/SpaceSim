@@ -6,6 +6,7 @@ using BEPUphysics;
 using BEPUphysics.Entities;
 using Microsoft.Xna.Framework;
 using ConversionHelper;
+using BEPUphysics.Entities.Prefabs;
 
 namespace SpaceSimLibrary
 {
@@ -17,6 +18,7 @@ namespace SpaceSimLibrary
         public Entity PhysicsEntity;
         public EntityType EntityType;
         public Matrix Scale;
+        public Game Game;
 
         private Matrix _World = Matrix.Identity;
         public Matrix World
@@ -48,17 +50,18 @@ namespace SpaceSimLibrary
             }
         }
 
-        public GameEntity(EntityType entityType, Entity physicsEntity)
+        public GameEntity(Game game, EntityType entityType, Entity physicsEntity)
         {
             ID = ++CURRENT_ID;
             EntityType = entityType;
             PhysicsEntity = physicsEntity;
             Scale = Matrix.Identity;
+            Game = game;
 
             if (PhysicsEntity != null) PhysicsEntity.Tag = this;
         }
 
-        public GameEntity(EntityType entityType, int id, Matrix world, float scaleX, float scaleY, float scaleZ) : this(entityType, null)
+        public GameEntity(Game game, EntityType entityType, int id, Matrix world, float scaleX, float scaleY, float scaleZ) : this(game, entityType, null)
         {
             ID = id;
             World = world;
@@ -74,5 +77,28 @@ namespace SpaceSimLibrary
         {
             Matrix.CreateScale(x, y, z, out Scale);
         }
+
+        public PhysicsShape PhysicsShape
+        {
+            get
+            {
+                if (PhysicsEntity is Box) return SpaceSimLibrary.PhysicsShape.Box;
+                else return SpaceSimLibrary.PhysicsShape.Sphere;
+            }
+        }
+
+        public virtual void Update(GameTime gameTime)
+        {
+        }
+
+        public virtual void Draw(Matrix view, Matrix projection, Vector3 cameraPosition, GameTime gameTime)
+        {
+        }
+    }
+
+    public enum PhysicsShape
+    {
+        Sphere = 1,
+        Box = 2
     }
 }

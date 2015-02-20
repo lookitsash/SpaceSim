@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using SpaceSimLibrary;
 using BEPUphysics.Entities;
+using Microsoft.Xna.Framework;
 
 namespace SpaceSim
 {
@@ -30,7 +31,7 @@ namespace SpaceSim
             ShipSpeedIndex = ShipSpeedIndexZero;
         }
 
-        public ShipEntity(Entity physicsEntity) : base(EntityType.Player, physicsEntity)
+        public ShipEntity(Game game, Entity physicsEntity) : base(game, EntityType.Player, physicsEntity)
         {
             PhysicsEntity.AngularDamping = 0.9f;
             PhysicsEntity.LinearDamping = 0.0f;

@@ -132,6 +132,13 @@ namespace SpaceSimLibrary.Networking
             WriteData(matrix.M44);
         }
 
+        public void WriteVector3(Vector3 vector)
+        {
+            WriteData(vector.X);
+            WriteData(vector.Y);
+            WriteData(vector.Z);
+        }
+
         public void WriteData(object obj)
         {
             if (obj is byte) Bytes.Add((byte)obj);
@@ -198,6 +205,11 @@ namespace SpaceSimLibrary.Networking
         public Matrix ReadMatrix()
         {
             return new Matrix(ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>(), ReadData<float>());
+        }
+
+        public Vector3 ReadVector3()
+        {
+            return new Vector3(ReadData<float>(), ReadData<float>(), ReadData<float>());
         }
     }
 }

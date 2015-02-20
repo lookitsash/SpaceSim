@@ -1,15 +1,16 @@
 SpaceSimLibraryContent\Models\cube.xnb
 SpaceSimLibraryContent\Models\asteroid.xnb
 SpaceSimLibraryContent\Models\Laser.xnb
+SpaceSimLibraryContent\Models\earth.xnb
 SpaceSimLibraryContent\Effects\Blur.xnb
 SpaceSimLibraryContent\Effects\earth.xnb
 SpaceSimLibraryContent\Effects\ParticleEffect.xnb
 SpaceSimLibraryContent\Effects\Skybox.xnb
 SpaceSimLibraryContent\Effects\starfield.xnb
+SpaceSimLibraryContent\Models\InstancedModel.xnb
 SpaceSimLibraryContent\Textures\earth_clouds_alpha.xnb
 SpaceSimLibraryContent\Textures\earth_day_color_spec.xnb
 SpaceSimLibraryContent\Textures\earth_night_color.xnb
 SpaceSimLibraryContent\Textures\earth_nrm.xnb
 SpaceSimLibraryContent\Textures\Background1.xnb
 SpaceSimLibraryContent\FBX\365319BB\asteroid.fbm\rock1_0.xnb
-SpaceSimLibraryContent\Models\InstancedModel.xnb
