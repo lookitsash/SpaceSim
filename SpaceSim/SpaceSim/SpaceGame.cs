@@ -37,6 +37,7 @@ namespace SpaceSim
         Vector2 infoFontPos = new Vector2(1.0f, 1.0f);
 
         Texture2D textureRearviewMirror, textureRearviewMirrorMask, textureSideviewMirrorLeft, textureSideviewMirrorRight, textureSideviewMirrorLeftMask, textureSideviewMirrorRightMask;
+        Color[] rearviewMirrorMask, sideviewMirrorLeftMask, sideviewMirrorRightMask;
 
         public SpaceGame()
         {
@@ -105,6 +106,13 @@ namespace SpaceSim
             textureSideviewMirrorLeftMask = Content.Load<Texture2D>("Textures/sideviewmirrorleft_mask");
             textureSideviewMirrorRight = Content.Load<Texture2D>("Textures/sideviewmirrorright");
             textureSideviewMirrorRightMask = Content.Load<Texture2D>("Textures/sideviewmirrorright_mask");
+
+            rearviewMirrorMask = new Color[textureRearviewMirrorMask.Width * textureRearviewMirrorMask.Height];
+            sideviewMirrorLeftMask = new Color[textureSideviewMirrorLeftMask.Width * textureSideviewMirrorLeftMask.Height];
+            sideviewMirrorRightMask = new Color[textureSideviewMirrorRightMask.Width * textureSideviewMirrorRightMask.Height];
+            textureRearviewMirrorMask.GetData(rearviewMirrorMask);
+            textureSideviewMirrorLeftMask.GetData(sideviewMirrorLeftMask);
+            textureSideviewMirrorRightMask.GetData(sideviewMirrorRightMask);
 
             InitializeCamera();
         }
@@ -225,13 +233,11 @@ namespace SpaceSim
             height = (int)((float)height / (float)width * maxSize);
             width = maxSize;
 
-            Color[] maskColors = new Color[textureRearviewMirrorMask.Width * textureRearviewMirrorMask.Height];
-            textureRearviewMirrorMask.GetData(maskColors);
             Color[] colors = new Color[textureRearviewMirrorReflection.Width * textureRearviewMirrorReflection.Height];
             textureRearviewMirrorReflection.GetData(colors);
             for (int i = 0; i < colors.Length; i++)
             {
-                colors[i].A = (byte)(255 - maskColors[i].A);
+                colors[i].A = (byte)(255 - rearviewMirrorMask[i].A);
             }
             textureRearviewMirrorReflection.SetData(colors);
 
@@ -281,13 +287,14 @@ namespace SpaceSim
             height = (int)((float)height / (float)width * maxSize);
             width = maxSize;
 
-            Color[] maskColors = new Color[textureSideviewMirrorLeftMask.Width * textureSideviewMirrorLeftMask.Height];
-            textureSideviewMirrorLeftMask.GetData(maskColors);
+            //Color[] maskColors = new Color[textureSideviewMirrorLeftMask.Width * textureSideviewMirrorLeftMask.Height];
+            //textureSideviewMirrorLeftMask.GetData(maskColors);
+            
             Color[] colors = new Color[textureSideviewMirrorLeftReflection.Width * textureSideviewMirrorLeftReflection.Height];
             textureSideviewMirrorLeftReflection.GetData(colors);
             for (int i = 0; i < colors.Length; i++)
             {
-                colors[i].A = (byte)(255 - maskColors[i].A);
+                colors[i].A = (byte)(255 - sideviewMirrorLeftMask[i].A);
             }
             textureSideviewMirrorLeftReflection.SetData(colors);
 
@@ -305,13 +312,14 @@ namespace SpaceSim
             height = (int)((float)height / (float)width * maxSize);
             width = maxSize;
 
-            Color[] maskColors = new Color[textureSideviewMirrorRightMask.Width * textureSideviewMirrorRightMask.Height];
-            textureSideviewMirrorRightMask.GetData(maskColors);
+            //Color[] maskColors = new Color[textureSideviewMirrorRightMask.Width * textureSideviewMirrorRightMask.Height];
+            //textureSideviewMirrorRightMask.GetData(maskColors);
+            
             Color[] colors = new Color[textureSideviewMirrorRightReflection.Width * textureSideviewMirrorRightReflection.Height];
             textureSideviewMirrorRightReflection.GetData(colors);
             for (int i = 0; i < colors.Length; i++)
             {
-                colors[i].A = (byte)(255 - maskColors[i].A);
+                colors[i].A = (byte)(255 - sideviewMirrorRightMask[i].A);
             }
             textureSideviewMirrorRightReflection.SetData(colors);
 
