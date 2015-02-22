@@ -25,7 +25,7 @@ namespace SpaceSim
     {
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
-        ChaseCamera camera;
+        ChaseCamera frontCamera, rearCamera, leftCamera, rightCamera;
         GameEntity cameraTarget;
         Skybox skybox;        
         GameManager gameManager;
@@ -35,6 +35,8 @@ namespace SpaceSim
         int framesPerSecond, frames;
         TimeSpan elapsedTime = TimeSpan.Zero;
         Vector2 infoFontPos = new Vector2(1.0f, 1.0f);
+
+        Texture2D textureRearviewMirror, textureRearviewMirrorMask, textureSideviewMirrorLeft, textureSideviewMirrorRight, textureSideviewMirrorLeftMask, textureSideviewMirrorRightMask;
 
         public SpaceGame()
         {
@@ -64,8 +66,6 @@ namespace SpaceSim
 
             graphics.PreferredBackBufferWidth = GraphicsDevice.DisplayMode.Width / 2;
             graphics.PreferredBackBufferHeight = GraphicsDevice.DisplayMode.Height / 2;
-
-            InitializeCamera();
         }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace SpaceSim
             spriteFont = Content.Load<SpriteFont>("Fonts/Font1");
 
             gameManager.RegisterModel(EntityType.Asteroid, new GameModel(GraphicsDevice, Content, "Models/asteroid"));
-            gameManager.RegisterModel(EntityType.Player, new GameModel(GraphicsDevice, Content, "Models/Ship"));
+            //gameManager.RegisterModel(EntityType.Player, new GameModel(GraphicsDevice, Content, "Models/Ship"));
             gameManager.RegisterModel(EntityType.PlanetEarth, new GameModel(GraphicsDevice, Content, "Models/earth"));
 
             ShipEntity playerEntity = new ShipEntity(this, new Sphere(new BEPUutilities.Vector3(0, 10, 350), 1, 100));
@@ -98,6 +98,15 @@ namespace SpaceSim
             inputManager = new InputManager(this, playerEntity);
 
             GenerateAsteroids();
+
+            textureRearviewMirror = Content.Load<Texture2D>("Textures/rearviewmirror");
+            textureRearviewMirrorMask = Content.Load<Texture2D>("Textures/rearviewmirror_mask");
+            textureSideviewMirrorLeft = Content.Load<Texture2D>("Textures/sideviewmirrorleft");
+            textureSideviewMirrorLeftMask = Content.Load<Texture2D>("Textures/sideviewmirrorleft_mask");
+            textureSideviewMirrorRight = Content.Load<Texture2D>("Textures/sideviewmirrorright");
+            textureSideviewMirrorRightMask = Content.Load<Texture2D>("Textures/sideviewmirrorright_mask");
+
+            InitializeCamera();
         }
 
         /// <summary>
@@ -145,12 +154,19 @@ namespace SpaceSim
             {
                 GraphicsDevice.Clear(Color.Black);
 
-                DrawSkybox(gameTime);
-                DrawGameEntities(gameTime);
+                RenderRearviewMirror(gameTime);
+                RenderSideviewMirrorLeft(gameTime);
+                RenderSideviewMirrorRight(gameTime);
+
+                DrawSkybox(frontCamera, gameTime);
+                DrawGameEntities(frontCamera, gameTime);
 
 
                 base.Draw(gameTime);
 
+                DrawRearviewMirror(gameTime);
+                DrawSideviewMirrorLeft(gameTime);
+                DrawSideviewMirrorRight(gameTime);
                 DrawOverlay(gameTime);
 
                 IncrementFrameCounter();
@@ -172,7 +188,7 @@ namespace SpaceSim
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         }
 
-        private void DrawSkybox(GameTime gameTime)
+        private void DrawSkybox(ChaseCamera camera, GameTime gameTime)
         {
             RasterizerState originalRasterizerState = graphics.GraphicsDevice.RasterizerState;
             RasterizerState rasterizerState = new RasterizerState();
@@ -182,7 +198,130 @@ namespace SpaceSim
             graphics.GraphicsDevice.RasterizerState = originalRasterizerState;
         }
 
-        private void DrawGameEntities(GameTime gameTime)
+        private RenderTarget2D renderTargetRearviewMirror, renderTargetSideviewMirrorLeft, renderTargetSideviewMirrorRight;
+        private Texture2D textureRearviewMirrorReflection = null, textureSideviewMirrorLeftReflection = null, textureSideviewMirrorRightReflection = null;
+
+        private void RenderRearviewMirror(GameTime gameTime)
+        {
+            int width = textureRearviewMirror.Width;
+            int height = textureRearviewMirror.Height;
+            int maxSize = 400;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
+
+            if (renderTargetRearviewMirror == null) renderTargetRearviewMirror = new RenderTarget2D(GraphicsDevice, textureRearviewMirrorMask.Width, textureRearviewMirrorMask.Height);
+            GraphicsDevice.SetRenderTarget(renderTargetRearviewMirror);
+            DrawSkybox(rearCamera, gameTime);
+            DrawGameEntities(rearCamera, gameTime);
+            GraphicsDevice.SetRenderTarget(null);
+            textureRearviewMirrorReflection = (Texture2D)renderTargetRearviewMirror;
+        }
+
+        private void DrawRearviewMirror(GameTime gameTime)
+        {
+            int width = textureRearviewMirror.Width;
+            int height = textureRearviewMirror.Height;
+            int maxSize = 400;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
+
+            Color[] maskColors = new Color[textureRearviewMirrorMask.Width * textureRearviewMirrorMask.Height];
+            textureRearviewMirrorMask.GetData(maskColors);
+            Color[] colors = new Color[textureRearviewMirrorReflection.Width * textureRearviewMirrorReflection.Height];
+            textureRearviewMirrorReflection.GetData(colors);
+            for (int i = 0; i < colors.Length; i++)
+            {
+                colors[i].A = (byte)(255 - maskColors[i].A);
+            }
+            textureRearviewMirrorReflection.SetData(colors);
+
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
+            spriteBatch.Draw(textureRearviewMirrorReflection, new Rectangle((Window.ClientBounds.Width - width) / 2, 0, width, height), Color.White);
+            spriteBatch.Draw(textureRearviewMirror, new Rectangle((Window.ClientBounds.Width - width) / 2, 0, width, height), Color.White);
+            spriteBatch.End();
+        }
+
+        private void RenderSideviewMirrorLeft(GameTime gameTime)
+        {
+            int width = textureSideviewMirrorLeft.Width;
+            int height = textureSideviewMirrorLeft.Height;
+            int maxSize = 200;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
+
+            if (renderTargetSideviewMirrorLeft == null) renderTargetSideviewMirrorLeft = new RenderTarget2D(GraphicsDevice, textureSideviewMirrorLeft.Width, textureSideviewMirrorLeft.Height);
+            GraphicsDevice.SetRenderTarget(renderTargetSideviewMirrorLeft);
+            DrawSkybox(rightCamera, gameTime);
+            DrawGameEntities(rightCamera, gameTime);
+            GraphicsDevice.SetRenderTarget(null);
+            textureSideviewMirrorLeftReflection = (Texture2D)renderTargetSideviewMirrorLeft;
+        }
+
+        private void RenderSideviewMirrorRight(GameTime gameTime)
+        {
+            int width = textureSideviewMirrorRight.Width;
+            int height = textureSideviewMirrorRight.Height;
+            int maxSize = 200;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
+
+            if (renderTargetSideviewMirrorRight == null) renderTargetSideviewMirrorRight = new RenderTarget2D(GraphicsDevice, textureSideviewMirrorRight.Width, textureSideviewMirrorRight.Height);
+            GraphicsDevice.SetRenderTarget(renderTargetSideviewMirrorRight);
+            DrawSkybox(leftCamera, gameTime);
+            DrawGameEntities(leftCamera, gameTime);
+            GraphicsDevice.SetRenderTarget(null);
+            textureSideviewMirrorRightReflection = (Texture2D)renderTargetSideviewMirrorRight;
+        }
+
+        private void DrawSideviewMirrorLeft(GameTime gameTime)
+        {
+            int width = textureSideviewMirrorLeft.Width;
+            int height = textureSideviewMirrorLeft.Height;
+            int maxSize = 200;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
+
+            Color[] maskColors = new Color[textureSideviewMirrorLeftMask.Width * textureSideviewMirrorLeftMask.Height];
+            textureSideviewMirrorLeftMask.GetData(maskColors);
+            Color[] colors = new Color[textureSideviewMirrorLeftReflection.Width * textureSideviewMirrorLeftReflection.Height];
+            textureSideviewMirrorLeftReflection.GetData(colors);
+            for (int i = 0; i < colors.Length; i++)
+            {
+                colors[i].A = (byte)(255 - maskColors[i].A);
+            }
+            textureSideviewMirrorLeftReflection.SetData(colors);
+
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
+            spriteBatch.Draw(textureSideviewMirrorLeft, new Rectangle(Window.ClientBounds.Width-width+50, Window.ClientBounds.Height-height-5, width, height), Color.White);
+            spriteBatch.Draw(textureSideviewMirrorLeftReflection, new Rectangle(Window.ClientBounds.Width - width + 50, Window.ClientBounds.Height - height - 5, width, height), Color.White);
+            spriteBatch.End();
+        }
+
+        private void DrawSideviewMirrorRight(GameTime gameTime)
+        {
+            int width = textureSideviewMirrorRight.Width;
+            int height = textureSideviewMirrorRight.Height;
+            int maxSize = 200;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
+
+            Color[] maskColors = new Color[textureSideviewMirrorRightMask.Width * textureSideviewMirrorRightMask.Height];
+            textureSideviewMirrorRightMask.GetData(maskColors);
+            Color[] colors = new Color[textureSideviewMirrorRightReflection.Width * textureSideviewMirrorRightReflection.Height];
+            textureSideviewMirrorRightReflection.GetData(colors);
+            for (int i = 0; i < colors.Length; i++)
+            {
+                colors[i].A = (byte)(255 - maskColors[i].A);
+            }
+            textureSideviewMirrorRightReflection.SetData(colors);
+
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
+            spriteBatch.Draw(textureSideviewMirrorRight, new Rectangle(-50, Window.ClientBounds.Height - height - 5, width, height), Color.White);
+            spriteBatch.Draw(textureSideviewMirrorRightReflection, new Rectangle(-50, Window.ClientBounds.Height - height - 5, width, height), Color.White);
+            spriteBatch.End();
+        }
+
+        private void DrawGameEntities(ChaseCamera camera, GameTime gameTime)
         {
             foreach (EntityType entityType in gameManager.GetEntityTypes())
             {
@@ -194,7 +333,7 @@ namespace SpaceSim
                     {
                         if (entity == cameraTarget || Vector3.Distance(camera.Position, entity.Position) <= 1000)
                         {
-                            SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity);
+                            if (camera == frontCamera) SpaceSimLibrary.Networking.Server.UpdateServerEntity(entity);
 
                             if (entity.EntityType == EntityType.PlanetEarth)
                             {
@@ -250,30 +389,57 @@ namespace SpaceSim
         {
             if (cameraTarget != null)
             {
-                camera.ChasePosition = cameraTarget.Position;
-                camera.ChaseDirection = cameraTarget.World.Forward;
-                camera.Up = cameraTarget.World.Up;
+                frontCamera.ChasePosition = cameraTarget.Position;
+                frontCamera.ChaseDirection = cameraTarget.World.Forward;
+                frontCamera.Up = cameraTarget.World.Up;
+                rearCamera.ChasePosition = cameraTarget.Position;
+                rearCamera.ChaseDirection = cameraTarget.World.Backward;
+                rearCamera.Up = cameraTarget.World.Up;
+                leftCamera.ChasePosition = cameraTarget.Position;
+                leftCamera.ChaseDirection = cameraTarget.World.Left;
+                leftCamera.Up = cameraTarget.World.Up;
+                rightCamera.ChasePosition = cameraTarget.Position;
+                rightCamera.ChaseDirection = cameraTarget.World.Right;
+                rightCamera.Up = cameraTarget.World.Up;
             }
-            camera.Reset();
+            frontCamera.Reset();
+            rearCamera.Reset();
+            leftCamera.Reset();
+            rightCamera.Reset();
         }
 
         private void InitializeCamera()
         {
-            camera = new ChaseCamera();
+            frontCamera = new ChaseCamera();
+            frontCamera.DesiredPositionOffset = new Vector3(0.0f, 1.0f, 3.5f);
+            frontCamera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
+            frontCamera.NearPlaneDistance = 0.1f;
+            frontCamera.FarPlaneDistance = 100000.0f;
+            frontCamera.AspectRatio = (float)graphics.GraphicsDevice.Viewport.Width / graphics.GraphicsDevice.Viewport.Height;
 
-            // Set the camera offsets
-            camera.DesiredPositionOffset = new Vector3(0.0f, 1.0f, 3.5f);
-            //camera.DesiredPositionOffset = new Vector3(100.0f, 100.0f, 350.0f);
-            camera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
+            rearCamera = new ChaseCamera();
+            rearCamera.DesiredPositionOffset = new Vector3(0.0f, 1.0f, 3.5f);
+            rearCamera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
+            rearCamera.NearPlaneDistance = 0.1f;
+            rearCamera.FarPlaneDistance = 100000.0f;
+            //rearCamera.AspectRatio = (float)graphics.GraphicsDevice.Viewport.Width / graphics.GraphicsDevice.Viewport.Height;
+            rearCamera.AspectRatio = (float)textureRearviewMirror.Width / textureRearviewMirror.Height;
 
-            // Set camera perspective
-            camera.NearPlaneDistance = 0.1f;
-            camera.FarPlaneDistance = 100000.0f;
+            leftCamera = new ChaseCamera();
+            leftCamera.DesiredPositionOffset = new Vector3(0.0f, 1.0f, 3.5f);
+            leftCamera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
+            leftCamera.NearPlaneDistance = 0.1f;
+            leftCamera.FarPlaneDistance = 100000.0f;
+            //leftCamera.AspectRatio = (float)graphics.GraphicsDevice.Viewport.Width / graphics.GraphicsDevice.Viewport.Height;
+            leftCamera.AspectRatio = (float)textureSideviewMirrorLeft.Width / textureSideviewMirrorLeft.Height;
 
-            // Set the camera aspect ratio
-            // This must be done after the class to base.Initalize() which will
-            // initialize the graphics device.
-            camera.AspectRatio = (float)graphics.GraphicsDevice.Viewport.Width / graphics.GraphicsDevice.Viewport.Height;
+            rightCamera = new ChaseCamera();
+            rightCamera.DesiredPositionOffset = new Vector3(0.0f, 1.0f, 3.5f);
+            rightCamera.LookAtOffset = new Vector3(0.0f, 0.5f, 0.0f);
+            rightCamera.NearPlaneDistance = 0.1f;
+            rightCamera.FarPlaneDistance = 100000.0f;
+            //rightCamera.AspectRatio = (float)graphics.GraphicsDevice.Viewport.Width / graphics.GraphicsDevice.Viewport.Height;
+            rightCamera.AspectRatio = (float)textureSideviewMirrorRight.Width / textureSideviewMirrorRight.Height;
 
             UpdateCamera();
         }

@@ -48,3 +48,10 @@ Content\Models\MoonMap2_2500x1250_0.xnb
 Content\textures\Probe_col_0.xnb
 Content\Models\VPblack_0.xnb
 Content\Models\cat_0.xnb
+Content\Textures\rearviewmirror.xnb
+Content\Textures\rearviewmirror_mask.xnb
+Content\Textures\rearviewmirror_testbg.xnb
+Content\Textures\sideviewmirrorleft.xnb
+Content\Textures\sideviewmirrorleft_mask.xnb
+Content\Textures\sideviewmirrorright.xnb
+Content\Textures\sideviewmirrorright_mask.xnb
