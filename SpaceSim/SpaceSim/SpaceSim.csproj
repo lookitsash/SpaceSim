@@ -167,6 +167,7 @@
     <Compile Include="OldClasses\SpaceSimGame.cs" />
     <Compile Include="OldClasses\Ship.cs" />
     <Compile Include="OldClasses\TargetedGraphicsDeviceManager.cs" />
+    <Compile Include="Starfield.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Game.ico" />

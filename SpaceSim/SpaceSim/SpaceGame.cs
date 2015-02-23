@@ -36,8 +36,11 @@ namespace SpaceSim
         TimeSpan elapsedTime = TimeSpan.Zero;
         Vector2 infoFontPos = new Vector2(1.0f, 1.0f);
 
+        bool renderTexturesToRenderTarget = true;
         Texture2D textureRearviewMirror, textureRearviewMirrorMask, textureSideviewMirrorLeft, textureSideviewMirrorRight, textureSideviewMirrorLeftMask, textureSideviewMirrorRightMask;
         Color[] rearviewMirrorMask, sideviewMirrorLeftMask, sideviewMirrorRightMask;
+
+        public Starfield starfield;
 
         public SpaceGame()
         {
@@ -96,7 +99,7 @@ namespace SpaceSim
             earthEntity.PhysicsEntity.AngularDamping = 0f;
             gameManager.RegisterEntity(earthEntity);
 
-            inputManager = new InputManager(this, playerEntity);
+            inputManager = new InputManager(this, gameManager, playerEntity);
 
             GenerateAsteroids();
 
@@ -113,6 +116,8 @@ namespace SpaceSim
             textureRearviewMirrorMask.GetData(rearviewMirrorMask);
             textureSideviewMirrorLeftMask.GetData(sideviewMirrorLeftMask);
             textureSideviewMirrorRightMask.GetData(sideviewMirrorRightMask);
+
+            starfield = new Starfield(this, spriteBatch, Window.ClientBounds.Width, Window.ClientBounds.Height);
 
             InitializeCamera();
         }
@@ -147,6 +152,8 @@ namespace SpaceSim
 
             if (inputManager != null) inputManager.Update(gameTime);
 
+            starfield.Update(gameTime);
+
             UpdateFrameRate(gameTime);
 
             base.Update(gameTime);
@@ -162,15 +169,21 @@ namespace SpaceSim
             {
                 GraphicsDevice.Clear(Color.Black);
 
-                RenderRearviewMirror(gameTime);
-                RenderSideviewMirrorLeft(gameTime);
-                RenderSideviewMirrorRight(gameTime);
+                if (renderTexturesToRenderTarget)
+                {
+                    RenderRearviewMirror(gameTime);
+                    RenderSideviewMirrorLeft(gameTime);
+                    RenderSideviewMirrorRight(gameTime);
+                }
+                renderTexturesToRenderTarget = !renderTexturesToRenderTarget;
 
                 DrawSkybox(frontCamera, gameTime);
                 DrawGameEntities(frontCamera, gameTime);
 
 
                 base.Draw(gameTime);
+
+                starfield.Draw(gameTime, 0, 0);
 
                 DrawRearviewMirror(gameTime);
                 DrawSideviewMirrorLeft(gameTime);
@@ -223,15 +236,6 @@ namespace SpaceSim
             DrawGameEntities(rearCamera, gameTime);
             GraphicsDevice.SetRenderTarget(null);
             textureRearviewMirrorReflection = (Texture2D)renderTargetRearviewMirror;
-        }
-
-        private void DrawRearviewMirror(GameTime gameTime)
-        {
-            int width = textureRearviewMirror.Width;
-            int height = textureRearviewMirror.Height;
-            int maxSize = 400;
-            height = (int)((float)height / (float)width * maxSize);
-            width = maxSize;
 
             Color[] colors = new Color[textureRearviewMirrorReflection.Width * textureRearviewMirrorReflection.Height];
             textureRearviewMirrorReflection.GetData(colors);
@@ -239,8 +243,19 @@ namespace SpaceSim
             {
                 colors[i].A = (byte)(255 - rearviewMirrorMask[i].A);
             }
-            textureRearviewMirrorReflection.SetData(colors);
+            textureRearviewMirrorReflection.SetData(colors);            
+        }
 
+        private void DrawRearviewMirror(GameTime gameTime)
+        {
+            if (textureRearviewMirrorReflection == null) return;
+
+            int width = textureRearviewMirror.Width;
+            int height = textureRearviewMirror.Height;
+            int maxSize = 400;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
+            
             spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
             spriteBatch.Draw(textureRearviewMirrorReflection, new Rectangle((Window.ClientBounds.Width - width) / 2, 0, width, height), Color.White);
             spriteBatch.Draw(textureRearviewMirror, new Rectangle((Window.ClientBounds.Width - width) / 2, 0, width, height), Color.White);
@@ -261,6 +276,14 @@ namespace SpaceSim
             DrawGameEntities(rightCamera, gameTime);
             GraphicsDevice.SetRenderTarget(null);
             textureSideviewMirrorLeftReflection = (Texture2D)renderTargetSideviewMirrorLeft;
+
+            Color[] colors = new Color[textureSideviewMirrorLeftReflection.Width * textureSideviewMirrorLeftReflection.Height];
+            textureSideviewMirrorLeftReflection.GetData(colors);
+            for (int i = 0; i < colors.Length; i++)
+            {
+                colors[i].A = (byte)(255 - sideviewMirrorLeftMask[i].A);
+            }
+            textureSideviewMirrorLeftReflection.SetData(colors);
         }
 
         private void RenderSideviewMirrorRight(GameTime gameTime)
@@ -277,44 +300,7 @@ namespace SpaceSim
             DrawGameEntities(leftCamera, gameTime);
             GraphicsDevice.SetRenderTarget(null);
             textureSideviewMirrorRightReflection = (Texture2D)renderTargetSideviewMirrorRight;
-        }
 
-        private void DrawSideviewMirrorLeft(GameTime gameTime)
-        {
-            int width = textureSideviewMirrorLeft.Width;
-            int height = textureSideviewMirrorLeft.Height;
-            int maxSize = 200;
-            height = (int)((float)height / (float)width * maxSize);
-            width = maxSize;
-
-            //Color[] maskColors = new Color[textureSideviewMirrorLeftMask.Width * textureSideviewMirrorLeftMask.Height];
-            //textureSideviewMirrorLeftMask.GetData(maskColors);
-            
-            Color[] colors = new Color[textureSideviewMirrorLeftReflection.Width * textureSideviewMirrorLeftReflection.Height];
-            textureSideviewMirrorLeftReflection.GetData(colors);
-            for (int i = 0; i < colors.Length; i++)
-            {
-                colors[i].A = (byte)(255 - sideviewMirrorLeftMask[i].A);
-            }
-            textureSideviewMirrorLeftReflection.SetData(colors);
-
-            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
-            spriteBatch.Draw(textureSideviewMirrorLeft, new Rectangle(Window.ClientBounds.Width-width+50, Window.ClientBounds.Height-height-5, width, height), Color.White);
-            spriteBatch.Draw(textureSideviewMirrorLeftReflection, new Rectangle(Window.ClientBounds.Width - width + 50, Window.ClientBounds.Height - height - 5, width, height), Color.White);
-            spriteBatch.End();
-        }
-
-        private void DrawSideviewMirrorRight(GameTime gameTime)
-        {
-            int width = textureSideviewMirrorRight.Width;
-            int height = textureSideviewMirrorRight.Height;
-            int maxSize = 200;
-            height = (int)((float)height / (float)width * maxSize);
-            width = maxSize;
-
-            //Color[] maskColors = new Color[textureSideviewMirrorRightMask.Width * textureSideviewMirrorRightMask.Height];
-            //textureSideviewMirrorRightMask.GetData(maskColors);
-            
             Color[] colors = new Color[textureSideviewMirrorRightReflection.Width * textureSideviewMirrorRightReflection.Height];
             textureSideviewMirrorRightReflection.GetData(colors);
             for (int i = 0; i < colors.Length; i++)
@@ -322,10 +308,37 @@ namespace SpaceSim
                 colors[i].A = (byte)(255 - sideviewMirrorRightMask[i].A);
             }
             textureSideviewMirrorRightReflection.SetData(colors);
+        }
+
+        private void DrawSideviewMirrorLeft(GameTime gameTime)
+        {
+            if (textureSideviewMirrorLeftReflection == null) return;
+
+            int width = textureSideviewMirrorLeft.Width;
+            int height = textureSideviewMirrorLeft.Height;
+            int maxSize = 200;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
 
             spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
-            spriteBatch.Draw(textureSideviewMirrorRight, new Rectangle(-50, Window.ClientBounds.Height - height - 5, width, height), Color.White);
+            spriteBatch.Draw(textureSideviewMirrorLeftReflection, new Rectangle(Window.ClientBounds.Width - width + 50, Window.ClientBounds.Height - height - 5, width, height), Color.White);
+            spriteBatch.Draw(textureSideviewMirrorLeft, new Rectangle(Window.ClientBounds.Width-width+50, Window.ClientBounds.Height-height-5, width, height), Color.White);            
+            spriteBatch.End();
+        }
+
+        private void DrawSideviewMirrorRight(GameTime gameTime)
+        {
+            if (textureSideviewMirrorRightReflection == null) return;
+
+            int width = textureSideviewMirrorRight.Width;
+            int height = textureSideviewMirrorRight.Height;
+            int maxSize = 200;
+            height = (int)((float)height / (float)width * maxSize);
+            width = maxSize;
+
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
             spriteBatch.Draw(textureSideviewMirrorRightReflection, new Rectangle(-50, Window.ClientBounds.Height - height - 5, width, height), Color.White);
+            spriteBatch.Draw(textureSideviewMirrorRight, new Rectangle(-50, Window.ClientBounds.Height - height - 5, width, height), Color.White);            
             spriteBatch.End();
         }
 

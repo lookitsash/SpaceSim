@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework;
 using BEPUphysics.Paths.PathFollowing;
+using SpaceSimLibrary;
 
 namespace SpaceSim
 {
@@ -12,7 +13,7 @@ namespace SpaceSim
     {
         KeyboardState previousKeyboardState = new KeyboardState();
         KeyboardState currentKeyboardState = new KeyboardState();
-        Game game;
+        SpaceGame game;
 
         const float DEFAULT_MOUSE_SMOOTHING_SENSITIVITY = 0.5f;
         const int MOUSE_SMOOTHING_CACHE_SIZE = 10;
@@ -29,9 +30,12 @@ namespace SpaceSim
         bool Paused = false;
         ShipEntity playerEntity;
 
-        public InputManager(Game game, ShipEntity playerEntity)
+        GameManager gameManager;
+
+        public InputManager(SpaceGame game, GameManager gameManager, ShipEntity playerEntity)
         {
             this.game = game;
+            this.gameManager = gameManager;
             this.playerEntity = playerEntity;
             savedMousePosX = -1;
             savedMousePosY = -1;
@@ -183,6 +187,11 @@ namespace SpaceSim
             {
                 Paused = !Paused;
                 game.IsMouseVisible = Paused;
+            }
+
+            if (previousKeyboardState.IsKeyUp(Keys.W) && (currentKeyboardState.IsKeyDown(Keys.W)))
+            {
+                game.starfield.StartWarp(10f);
             }
 
             if (!Paused)
