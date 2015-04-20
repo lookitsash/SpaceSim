@@ -73,7 +73,7 @@ namespace SpaceSim
         }
 
         private bool WarpEngaged = false;
-        private DateTime WarpStartDate, WarpEndDate, WarpFullSpeedDate;
+        private DateTime WarpInitializeDate, WarpStartDate, WarpEndDate, WarpFullSpeedDate;
         private float MinWarp = 12, MaxWarp = 1;
         private byte BackgroundAlpha
         {
@@ -88,7 +88,8 @@ namespace SpaceSim
             if (!WarpEngaged)
             {
                 WarpEngaged = true;
-                WarpStartDate = DateTime.Now;
+                WarpInitializeDate = DateTime.Now;
+                WarpStartDate = WarpInitializeDate.AddSeconds(3);
                 WarpFullSpeedDate = WarpStartDate.AddSeconds(duration / 2.0);
                 WarpEndDate = WarpStartDate.AddSeconds(duration);
                 InitializeStars();
@@ -100,16 +101,23 @@ namespace SpaceSim
             if (WarpEndDate <= DateTime.Now) WarpEngaged = false;
             if (!WarpEngaged) return;
 
-            double maxWarpDuration = (WarpFullSpeedDate - WarpStartDate).TotalSeconds;
-            double warpDuration = (WarpFullSpeedDate - DateTime.Now).TotalSeconds;
-            if (warpDuration > 0)
+            if (WarpStartDate < DateTime.Now)
             {
-                warpZ = (float)Math.Max(1, (warpDuration / maxWarpDuration) * MinWarp);
+                double maxWarpDuration = (WarpFullSpeedDate - WarpStartDate).TotalSeconds;
+                double warpDuration = (WarpFullSpeedDate - DateTime.Now).TotalSeconds;
+                if (warpDuration > 0)
+                {
+                    warpZ = (float)Math.Max(1, (warpDuration / maxWarpDuration) * MinWarp);
+                }
+                else
+                {
+                    warpDuration *= -1.0;
+                    warpZ = (float)Math.Max(1, (warpDuration / maxWarpDuration) * MinWarp);
+                }
             }
             else
             {
-                warpDuration *= -1.0;
-                warpZ = (float)Math.Max(1, (warpDuration / maxWarpDuration) * MinWarp);
+                warpZ = 12;
             }
             
             //int x = 10;
@@ -153,7 +161,7 @@ namespace SpaceSim
                     int starSize = 5 - (int)((star.z / warpZ) * 4f);
                     byte starShade = (byte)((200f - ((star.z / warpZ) * 200f))+55f);
                     //starColor.R = starColor.G = starColor.B = starShade;
-                    starColor.A = BackgroundAlpha;// starShade;
+                    starColor.A = starShade;
                     DrawPixel(xPos, yPos, starColor, starSize);
                     //TextureData[yPos * Width + xPos] = starColor;
                 }

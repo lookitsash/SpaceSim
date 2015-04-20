@@ -191,7 +191,7 @@ namespace SpaceSim
 
             if (previousKeyboardState.IsKeyUp(Keys.W) && (currentKeyboardState.IsKeyDown(Keys.W)))
             {
-                game.starfield.StartWarp(10f);
+                game.starfield.StartWarp(15f);
             }
 
             if (!Paused)
